@@ -14,20 +14,35 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Build
+      - name: Build for iOS (arm64)
         run: |
-          swift build -c release --arch arm64
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "Using SDK: $SDK_PATH"
 
-      - name: Package dylib
+          swift build -c release \
+            --arch arm64 \
+            -Xswiftc "-sdk" -Xswiftc "$SDK_PATH" \
+            -Xswiftc "-target" -Xswiftc "arm64-apple-ios17.0"
+
+      - name: Find and package the dylib
         run: |
           mkdir -p output
           BINARY=$(find .build -type f \( -name "libGlossyGlass.dylib" -o -name "GlossyGlass" \) | head -1)
-          echo "Binary: $BINARY"
+          
+          if [ -z "$BINARY" ]; then
+            echo "ERROR: No binary found"
+            find .build -type f | head -30
+            exit 1
+          fi
+
+          echo "Found: $BINARY"
           cp "$BINARY" output/GlossyGlass.dylib
           file output/GlossyGlass.dylib
           ls -la output/
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload the dylib
+        uses: actions/upload-artifact@v4
         with:
           name: GlossyGlass-dylib
           path: output/GlossyGlass.dylib
+          retention-days: 30
