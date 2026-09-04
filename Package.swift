@@ -3,15 +3,27 @@ import PackageDescription
 
 let package = Package(
     name: "GlossyGlass",
-    platforms: [.iOS(.v17)],
+    platforms: [
+        .iOS(.v17)
+    ],
     products: [
-        .library(name: "GlossyGlass", type: .dynamic, targets: ["GlossyGlass"])
+        .library(
+            name: "GlossyGlass",
+            type: .dynamic,
+            targets: ["GlossyGlass"]
+        )
     ],
     targets: [
         .target(
             name: "GlossyGlass",
             path: ".",
-            exclude: ["Package.swift", "README.md", "build-dylib.yml", "HOW-TO-UPLOAD.txt", "build.cmd"]
+            exclude: [
+                "Package.swift",
+                "README.md",
+                "build-dylib.yml",
+                "HOW-TO-UPLOAD.txt",
+                "build.cmd"
+            ]
         )
     ]
 )
