@@ -14,33 +14,37 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Build for iOS (arm64)
+      - name: Build for iPhoneOS arm64
         run: |
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          echo "Using SDK: $SDK_PATH"
+          set -e
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "SDK = $SDK"
 
+          # Force pure iOS build
           swift build -c release \
             --arch arm64 \
-            -Xswiftc "-sdk" -Xswiftc "$SDK_PATH" \
-            -Xswiftc "-target" -Xswiftc "arm64-apple-ios17.0"
+            -Xswiftc -sdk -Xswiftc "$SDK" \
+            -Xswiftc -target -Xswiftc arm64-apple-ios17.0 \
+            -Xcc -isysroot -Xcc "$SDK" \
+            -Xcxx -isysroot -Xcxx "$SDK"
 
-      - name: Find and package the dylib
+      - name: Package the dylib
         run: |
           mkdir -p output
           BINARY=$(find .build -type f \( -name "libGlossyGlass.dylib" -o -name "GlossyGlass" \) | head -1)
-          
+
           if [ -z "$BINARY" ]; then
-            echo "ERROR: No binary found"
-            find .build -type f | head -30
+            echo "=== DEBUG: files in .build ==="
+            find .build -type f | head -50
             exit 1
           fi
 
-          echo "Found: $BINARY"
+          echo "Found binary: $BINARY"
           cp "$BINARY" output/GlossyGlass.dylib
           file output/GlossyGlass.dylib
           ls -la output/
 
-      - name: Upload the dylib
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: GlossyGlass-dylib
