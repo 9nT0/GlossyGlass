@@ -4,12 +4,12 @@ import UIKit
 
     private let glass = GlassView()
 
-    @objc public var glassTint: UIColor = UIColor.white.withAlphaComponent(0.13) {
-        didSet { glass.glassTint = glassTint }
+    @objc public var glossIntensity: CGFloat = 0.50 {
+        didSet { glass.glossIntensity = glossIntensity }
     }
 
-    @objc public var glossIntensity: CGFloat = 0.55 {
-        didSet { glass.glossIntensity = glossIntensity }
+    @objc public var customTint: UIColor? = nil {
+        didSet { glass.customTint = customTint }
     }
 
     public override init(frame: CGRect) {
@@ -38,18 +38,19 @@ import UIKit
 
         titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         setTitleColor(.label, for: .normal)
-        contentEdgeInsets = UIEdgeInsets(top: 13, left: 20, bottom: 13, right: 20)
+        setTitleColor(.label.withAlphaComponent(0.55), for: .highlighted)
+        contentEdgeInsets = UIEdgeInsets(top: 12, left: 18, bottom: 12, right: 18)
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
-        glass.cornerRadius = min(bounds.height / 2.15, 22)
+        glass.cornerRadius = min(bounds.height / 2.2, 20)
     }
 
     public override var isHighlighted: Bool {
         didSet {
-            UIView.animate(withDuration: 0.18, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5) {
-                self.transform = self.isHighlighted ? CGAffineTransform(scaleX: 0.96, y: 0.96) : .identity
+            UIView.animate(withDuration: 0.16, delay: 0, usingSpringWithDamping: 0.72, initialSpringVelocity: 0.5) {
+                self.transform = self.isHighlighted ? CGAffineTransform(scaleX: 0.965, y: 0.965) : .identity
             }
         }
     }
