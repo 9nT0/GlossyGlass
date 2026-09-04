@@ -1,9 +1,10 @@
 import UIKit
 
-/// Clean glossy glass view with adaptive Light/Dark support and stable layers
+/// Clean glossy glass view with adaptive Light/Dark support,
+/// stable layers, and full preference support.
 @objc open class GlassView: UIView {
 
-    // MARK: - Public
+    // MARK: - Public API
 
     @objc public var glossIntensity: CGFloat = 0.50 {
         didSet { updateAppearance() }
@@ -15,17 +16,19 @@ import UIKit
 
     @objc public var isInteractive: Bool = true
 
-    /// Optional manual tint. When nil, uses adaptive system style.
+    /// Optional manual tint. When nil, uses adaptive system style or preferences.
     @objc public var customTint: UIColor? = nil {
         didSet { updateAppearance() }
     }
 
     // MARK: - Private layers
 
-    private let blurView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    private let blurView = UIVisualEffectView(effect: nil)
     private let tintLayer = CALayer()
     private let glossLayer = CAGradientLayer()
     private let borderLayer = CALayer()
+
+    private var preferencesObserver: NSObjectProtocol?
 
     // MARK: - Init
 
@@ -39,12 +42,18 @@ import UIKit
         commonInit()
     }
 
+    deinit {
+        if let observer = preferencesObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     private func commonInit() {
         backgroundColor = .clear
         clipsToBounds = true
         isUserInteractionEnabled = true
 
-        // Blur – lightest material for performance
+        // Blur
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.clipsToBounds = true
         addSubview(blurView)
@@ -62,6 +71,15 @@ import UIKit
 
         borderLayer.borderWidth = 0.55
         layer.addSublayer(borderLayer)
+
+        // Listen for preference changes
+        preferencesObserver = NotificationCenter.default.addObserver(
+            forName: .glassPreferencesDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updateAppearance()
+        }
 
         applyCorners()
         updateAppearance()
@@ -95,42 +113,62 @@ import UIKit
     }
 
     private func updateAppearance() {
-        let isDark = traitCollection.userInterfaceStyle == .dark
+        let prefs = GlassPreferences.shared
 
-        // Adaptive tint
+        // Master switch – if disabled, make everything transparent
+        guard prefs.isEnabled else {
+            blurView.effect = nil
+            tintLayer.backgroundColor = UIColor.clear.cgColor
+            glossLayer.colors = [UIColor.clear.cgColor]
+            borderLayer.borderColor = UIColor.clear.cgColor
+            return
+        }
+
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        let intensity = prefs.glossIntensity
+
+        // Blur style – lighter material in lightweight mode
+        let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
+            ? .systemUltraThinMaterial
+            : .systemThinMaterial
+        blurView.effect = UIBlurEffect(style: blurStyle)
+
+        // Tint
         let tint: UIColor
-        if let custom = customTint {
-            tint = custom
+        if let manual = customTint {
+            tint = manual
+        } else if let prefTint = prefs.customTint {
+            tint = prefTint
         } else {
             tint = isDark
-                ? UIColor.white.withAlphaComponent(0.08)
-                : UIColor.white.withAlphaComponent(0.13)
+                ? UIColor.white.withAlphaComponent(0.07)
+                : UIColor.white.withAlphaComponent(0.12)
         }
         tintLayer.backgroundColor = tint.cgColor
 
-        // Adaptive gloss (softer in dark mode)
-        let intensity = isDark ? glossIntensity * 0.75 : glossIntensity
+        // Gloss (softer in dark mode + respects intensity)
+        let adjustedIntensity = isDark ? intensity * 0.70 : intensity
+        let topAlpha: CGFloat = prefs.lightweightMode ? 0.28 : 0.38
         glossLayer.colors = [
-            UIColor.white.withAlphaComponent(0.38 * intensity).cgColor,
-            UIColor.white.withAlphaComponent(0.08 * intensity).cgColor,
+            UIColor.white.withAlphaComponent(topAlpha * adjustedIntensity).cgColor,
+            UIColor.white.withAlphaComponent(0.07 * adjustedIntensity).cgColor,
             UIColor.clear.cgColor
         ]
-        glossLayer.locations = [0.0, 0.32, 1.0]
+        glossLayer.locations = [0.0, 0.30, 1.0]
 
-        // Adaptive border
+        // Border
         borderLayer.borderColor = (isDark
-            ? UIColor.white.withAlphaComponent(0.18)
-            : UIColor.white.withAlphaComponent(0.30)).cgColor
+            ? UIColor.white.withAlphaComponent(0.16)
+            : UIColor.white.withAlphaComponent(0.28)).cgColor
+        borderLayer.borderWidth = prefs.lightweightMode ? 0.4 : 0.55
     }
 
-    // MARK: - Touch
+    // MARK: - Touch feedback
 
     public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
-        guard isInteractive else { return }
-        UIView.animate(withDuration: 0.16, delay: 0, usingSpringWithDamping: 0.72, initialSpringVelocity: 0.5) {
-            self.transform = CGAffineTransform(scaleX: 0.975, y: 0.975)
-        }
+        guard isInteractive, GlassPreferences.shared.isEnabled else { return }
+        GlassAnimations.pressIn(self, scale: 0.975)
     }
 
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -145,8 +183,7 @@ import UIKit
 
     private func resetTransform() {
         guard isInteractive else { return }
-        UIView.animate(withDuration: 0.26, delay: 0, usingSpringWithDamping: 0.78, initialSpringVelocity: 0.4) {
-            self.transform = .identity
-        }
+        GlassAnimations.pressOut(self)
     }
 }
+

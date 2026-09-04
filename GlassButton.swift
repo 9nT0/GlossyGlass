@@ -23,6 +23,13 @@ import UIKit
     }
 
     private func setup() {
+        // Respect preference for buttons
+        guard GlassPreferences.shared.styleButtons else {
+            // Still create a basic button look if styling is disabled
+            backgroundColor = .clear
+            return
+        }
+
         backgroundColor = .clear
         glass.isUserInteractionEnabled = false
         glass.isInteractive = false
@@ -40,6 +47,18 @@ import UIKit
         setTitleColor(.label, for: .normal)
         setTitleColor(.label.withAlphaComponent(0.55), for: .highlighted)
         contentEdgeInsets = UIEdgeInsets(top: 12, left: 18, bottom: 12, right: 18)
+
+        // Observe preference changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesChanged),
+            name: .glassPreferencesDidChange,
+            object: nil
+        )
+    }
+
+    @objc private func preferencesChanged() {
+        glass.isHidden = !GlassPreferences.shared.isEnabled || !GlassPreferences.shared.styleButtons
     }
 
     public override func layoutSubviews() {
@@ -49,9 +68,16 @@ import UIKit
 
     public override var isHighlighted: Bool {
         didSet {
-            UIView.animate(withDuration: 0.16, delay: 0, usingSpringWithDamping: 0.72, initialSpringVelocity: 0.5) {
-                self.transform = self.isHighlighted ? CGAffineTransform(scaleX: 0.965, y: 0.965) : .identity
+            guard GlassPreferences.shared.isEnabled else { return }
+            if isHighlighted {
+                GlassAnimations.pressIn(self, scale: 0.965)
+            } else {
+                GlassAnimations.pressOut(self)
             }
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }

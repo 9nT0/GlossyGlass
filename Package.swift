@@ -23,7 +23,8 @@ let package = Package(
                 "build-dylib.yml",
                 "HOW-TO-UPLOAD.txt",
                 "build.cmd"
-            ]
+            ],
+            publicHeadersPath: "."
         )
     ]
 )

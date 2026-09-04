@@ -30,12 +30,20 @@ public extension View {
         interactive: Bool = false,
         customTint: UIColor? = nil
     ) -> some View {
-        background(
-            GlassViewRepresentable(
-                cornerRadius: cornerRadius,
-                gloss: gloss,
-                interactive: interactive,
-                customTint: customTint
+        // Respect global preferences
+        let prefs = GlassPreferences.shared
+        guard prefs.isEnabled && prefs.styleCards else {
+            return AnyView(self)
+        }
+
+        return AnyView(
+            background(
+                GlassViewRepresentable(
+                    cornerRadius: cornerRadius,
+                    gloss: gloss,
+                    interactive: interactive,
+                    customTint: customTint
+                )
             )
         )
     }
@@ -55,15 +63,26 @@ public struct GlassCard<Content: View>: View {
 
 public struct GlassButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let prefs = GlassPreferences.shared
+        let enabled = prefs.isEnabled && prefs.styleButtons
+
+        return configuration.label
             .padding(.horizontal, 18)
             .padding(.vertical, 11)
             .font(.system(size: 17, weight: .semibold))
-            .glassBackground(
-                cornerRadius: 20,
-                gloss: configuration.isPressed ? 0.62 : 0.50
+            .background(
+                Group {
+                    if enabled {
+                        GlassViewRepresentable(
+                            cornerRadius: 20,
+                            gloss: configuration.isPressed ? 0.62 : 0.50
+                        )
+                    } else {
+                        Color.clear
+                    }
+                }
             )
-            .scaleEffect(configuration.isPressed ? 0.965 : 1)
+            .scaleEffect(configuration.isPressed && enabled ? 0.965 : 1)
             .animation(.spring(response: 0.26, dampingFraction: 0.72), value: configuration.isPressed)
     }
 }
