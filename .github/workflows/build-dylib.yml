@@ -1,1 +1,33 @@
+name: Build iOS dylib
 
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build
+        run: |
+          swift build -c release --arch arm64
+
+      - name: Package dylib
+        run: |
+          mkdir -p output
+          BINARY=$(find .build -type f \( -name "libGlossyGlass.dylib" -o -name "GlossyGlass" \) | head -1)
+          echo "Binary: $BINARY"
+          cp "$BINARY" output/GlossyGlass.dylib
+          file output/GlossyGlass.dylib
+          ls -la output/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlossyGlass-dylib
+          path: output/GlossyGlass.dylib
