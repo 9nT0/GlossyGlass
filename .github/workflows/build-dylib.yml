@@ -20,7 +20,6 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "SDK = $SDK"
 
-          # Force pure iOS build
           swift build -c release \
             --arch arm64 \
             -Xswiftc -sdk -Xswiftc "$SDK" \
@@ -34,17 +33,17 @@ jobs:
           BINARY=$(find .build -type f \( -name "libGlossyGlass.dylib" -o -name "GlossyGlass" \) | head -1)
 
           if [ -z "$BINARY" ]; then
-            echo "=== DEBUG: files in .build ==="
-            find .build -type f | head -50
+            echo "=== DEBUG ==="
+            find .build -type f | head -40
             exit 1
           fi
 
-          echo "Found binary: $BINARY"
+          echo "Found: $BINARY"
           cp "$BINARY" output/GlossyGlass.dylib
           file output/GlossyGlass.dylib
           ls -la output/
 
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: GlossyGlass-dylib
