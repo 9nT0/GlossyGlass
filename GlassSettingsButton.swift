@@ -147,7 +147,7 @@ private class GlassSettingsViewController: UIViewController {
 
         let resetAll = UIButton(type: .system)
         resetAll.setTitle("Reset to Defaults", for: .normal)
-        resetAll.addTarget(self, action: #selector(resetAll), for: .touchUpInside)
+        resetAll.addTarget(self, action: #selector(resetAllDefaults), for: .touchUpInside)
         stack.addArrangedSubview(resetAll)
 
         // Branding
@@ -226,7 +226,7 @@ private class GlassSettingsViewController: UIViewController {
         reload()
     }
 
-    @objc private func resetAll() {
+    @objc private func resetAllDefaults() {
         prefs.resetToDefaults()
         reload()
     }
