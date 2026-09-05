@@ -24,14 +24,19 @@ jobs:
           echo "Target = $TARGET"
           echo "Xcode  = $(xcodebuild -version | head -1)"
 
-          mkdir -p output build
+          mkdir -p output
 
-          # Collect all Swift sources
-          SOURCES=$(find . -name "*.swift" -not -path "./.build/*" -not -path "./output/*" | tr '\n' ' ')
-          echo "Sources: $SOURCES"
+          # Only real source files – exclude Package.swift and docs
+          SOURCES=$(find . -name "*.swift" \
+            -not -name "Package.swift" \
+            -not -path "./.build/*" \
+            -not -path "./output/*" \
+            | tr '\n' ' ')
 
-          # Compile to a single iOS dylib using swiftc directly
-          # This bypasses SPM's host-platform default
+          echo "Sources:"
+          echo "$SOURCES" | tr ' ' '\n'
+
+          # Compile to a real iOS dylib
           xcrun --sdk iphoneos swiftc \
             -emit-library \
             -o output/GlossyGlass.dylib \
@@ -41,26 +46,26 @@ jobs:
             -O \
             -whole-module-optimization \
             -parse-as-library \
-            -enable-library-evolution \
-            -Xlinker -ios_version_min -Xlinker 17.0 \
             $SOURCES
 
+          echo ""
           echo "=== file info ==="
           file output/GlossyGlass.dylib
 
+          echo ""
           echo "=== LC_BUILD_VERSION ==="
           otool -l output/GlossyGlass.dylib | grep -A6 LC_BUILD_VERSION || true
 
-          # Final platform check
+          # Fail if still macOS
           if otool -l output/GlossyGlass.dylib | grep -q "platform 2"; then
-            echo "ERROR: Still macOS binary (platform 2)"
+            echo "ERROR: Binary is still macOS (platform 2)"
             exit 1
           fi
 
           if otool -l output/GlossyGlass.dylib | grep -q "platform 1"; then
             echo "SUCCESS: Confirmed iOS binary (platform 1)"
           else
-            echo "WARNING: Could not confirm platform 1, but not platform 2 either"
+            echo "Platform check:"
             otool -l output/GlossyGlass.dylib | grep -A8 LC_BUILD_VERSION || true
           fi
 
