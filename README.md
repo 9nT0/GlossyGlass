@@ -3,7 +3,7 @@
 Advanced liquid glass UI for **iOS 17 – 18.x**
 
 Made by **Killswitch**  
-Discord: [discord.gg/SxtnSjDvu](https://discord.gg/SxtnSjDvu)
+Discord: [discord.gg/SxtnSjDvu](https://discord.gg/Sxtn7SjDvu)
 
 ---
 
