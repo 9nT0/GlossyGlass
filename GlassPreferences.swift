@@ -57,6 +57,7 @@ import Foundation
             Key.lightIntensity.rawValue     : 0.55,
             Key.darkIntensity.rawValue      : 0.45,
             Key.hideGlassButton.rawValue    : false,
+            "GG_LightweightMode"         : false,
             Key.styleNavigationBar.rawValue : true,
             Key.styleTabBar.rawValue        : true,
             Key.styleButtons.rawValue       : true,
@@ -174,6 +175,37 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.preset.rawValue) }
     }
 
+
+    // MARK: - Compatibility aliases (used by GlassView / NavHelper / etc.)
+
+    @objc public var glossIntensity: CGFloat {
+        get { intensity }
+        set { intensity = newValue }
+    }
+
+    @objc public var lightweightMode: Bool {
+        get { defaults.bool(forKey: "GG_LightweightMode") }
+        set {
+            defaults.set(newValue, forKey: "GG_LightweightMode")
+            notifyChange()
+        }
+    }
+
+    @objc public var customTint: UIColor? {
+        get {
+            guard let hex = defaults.string(forKey: "GG_CustomTintHex"), !hex.isEmpty else { return nil }
+            return UIColor(ggHex: hex)
+        }
+        set {
+            if let color = newValue {
+                defaults.set(color.ggToHex(), forKey: "GG_CustomTintHex")
+            } else {
+                defaults.set("", forKey: "GG_CustomTintHex")
+            }
+            notifyChange()
+        }
+    }
+
     // MARK: - Presets
 
     @objc public func applyPreset(_ name: String) {
@@ -221,4 +253,39 @@ import Foundation
 
 public extension Notification.Name {
     static let glassPreferencesDidChange = Notification.Name("GlassPreferencesDidChange")
+}
+
+
+// MARK: - UIColor hex helpers
+
+private extension UIColor {
+    convenience init?(ggHex: String) {
+        var hex = ggHex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        var rgb: UInt64 = 0
+        guard Scanner(string: hex).scanHexInt64(&rgb) else { return nil }
+        let r, g, b, a: CGFloat
+        switch hex.count {
+        case 6:
+            r = CGFloat((rgb & 0xFF0000) >> 16) / 255
+            g = CGFloat((rgb & 0x00FF00) >> 8) / 255
+            b = CGFloat(rgb & 0x0000FF) / 255
+            a = 1.0
+        case 8:
+            r = CGFloat((rgb & 0xFF000000) >> 24) / 255
+            g = CGFloat((rgb & 0x00FF0000) >> 16) / 255
+            b = CGFloat((rgb & 0x0000FF00) >> 8) / 255
+            a = CGFloat(rgb & 0x000000FF) / 255
+        default:
+            return nil
+        }
+        self.init(red: r, green: g, blue: b, alpha: a)
+    }
+
+    func ggToHex() -> String {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getRed(&r, green: &g, blue: &b, alpha: &a)
+        let rgb = Int(r * 255) << 16 | Int(g * 255) << 8 | Int(b * 255)
+        return String(format: "#%06x", rgb)
+    }
 }
