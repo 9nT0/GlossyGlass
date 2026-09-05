@@ -15,57 +15,51 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app
 
       - name: Build real iOS arm64 dylib
+        shell: bash
         run: |
           set -euo pipefail
 
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           TARGET="arm64-apple-ios17.0"
+          SWIFT=$(xcrun --sdk iphoneos -f swiftc)
 
           echo "SDK    = $SDK"
           echo "Target = $TARGET"
+          echo "swiftc = $SWIFT"
           echo "Xcode  = $(xcodebuild -version | head -1)"
 
           mkdir -p output build
 
-          # Only Swift sources
-          mapfile -t SOURCES < <(find . -name "*.swift" \
-            -not -name "Package.swift" \
-            -not -path "./.build/*" \
-            -not -path "./output/*" \
-            -not -path "./build/*")
+          # Portable way to collect sources (no mapfile)
+          SOURCES=""
+          for f in $(find . -name "*.swift" \
+              -not -name "Package.swift" \
+              -not -path "./.build/*" \
+              -not -path "./output/*" \
+              -not -path "./build/*"); do
+            SOURCES="$SOURCES $f"
+          done
 
-          echo "Sources (${#SOURCES[@]}):"
-          printf '  %s\n' "${SOURCES[@]}"
+          echo "Sources:"
+          for s in $SOURCES; do echo "  $s"; done
 
-          # Compile all sources together into one object file
-          echo "Compiling..."
-          xcrun --sdk iphoneos swiftc \
-            -c \
+          # Critical: force SDKROOT so the driver does not fall back to macOS
+          export SDKROOT="$SDK"
+
+          echo "Compiling + linking..."
+          # Use the real swiftc from the iPhoneOS SDK path
+          "$SWIFT" \
+            -emit-library \
+            -o output/GlossyGlass.dylib \
+            -module-name GlossyGlass \
             -target "$TARGET" \
             -sdk "$SDK" \
             -O \
             -whole-module-optimization \
             -parse-as-library \
-            -module-name GlossyGlass \
-            -o build/GlossyGlass.o \
-            "${SOURCES[@]}"
-
-          echo "Linking with forced iOS platform..."
-          xcrun --sdk iphoneos clang++ \
-            -target "$TARGET" \
-            -isysroot "$SDK" \
-            -dynamiclib \
-            -o output/GlossyGlass.dylib \
-            -install_name "@rpath/GlossyGlass.dylib" \
             -Xlinker -platform_version -Xlinker ios -Xlinker 17.0 -Xlinker 17.5 \
             -Xlinker -ios_version_min -Xlinker 17.0 \
-            -framework Foundation \
-            -framework UIKit \
-            -framework SwiftUI \
-            -framework QuartzCore \
-            -framework CoreGraphics \
-            -framework CoreImage \
-            build/GlossyGlass.o
+            $SOURCES
 
           echo ""
           echo "=== file ==="
@@ -83,7 +77,7 @@ jobs:
           if otool -l output/GlossyGlass.dylib | grep -q "platform 1"; then
             echo "✅ SUCCESS: Real iOS binary (platform 1)"
           else
-            echo "No platform 2 detected"
+            echo "Platform check (no platform 2 is good):"
             otool -l output/GlossyGlass.dylib | grep -A10 LC_BUILD_VERSION || true
           fi
 
