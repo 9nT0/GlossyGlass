@@ -40,17 +40,17 @@ import UIKit
             top = presented
         }
 
-        let panel = GlassSettingsViewController()
-        panel.modalPresentationStyle = .pageSheet
+        let nav = UINavigationController(rootViewController: GlassSettingsViewController())
+        nav.modalPresentationStyle = .pageSheet
 
         if #available(iOS 15.0, *) {
-            if let sheet = panel.sheetPresentationController {
+            if let sheet = nav.sheetPresentationController {
                 sheet.detents = [.medium(), .large()]
                 sheet.prefersGrabberVisible = true
             }
         }
 
-        top.present(panel, animated: true)
+        top.present(nav, animated: true)
     }
 }
 
@@ -145,6 +145,31 @@ private class GlassSettingsViewController: UIViewController {
         reset.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
         reset.addTarget(self, action: #selector(resetDefaults), for: .touchUpInside)
         stack.addArrangedSubview(reset)
+
+        // Branding
+        let spacer = UIView()
+        spacer.heightAnchor.constraint(equalToConstant: 12).isActive = true
+        stack.addArrangedSubview(spacer)
+
+        let madeBy = UILabel()
+        madeBy.text = "Made by Killswitch"
+        madeBy.font = .systemFont(ofSize: 14, weight: .semibold)
+        madeBy.textColor = .label
+        madeBy.textAlignment = .center
+        stack.addArrangedSubview(madeBy)
+
+        let discordBtn = UIButton(type: .system)
+        discordBtn.setTitle("discord.gg/SxtnSjDvu", for: .normal)
+        discordBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        discordBtn.addTarget(self, action: #selector(openDiscord), for: .touchUpInside)
+        stack.addArrangedSubview(discordBtn)
+
+        let version = UILabel()
+        version.text = "GlossyGlass v1.0"
+        version.font = .systemFont(ofSize: 12, weight: .regular)
+        version.textColor = .tertiaryLabel
+        version.textAlignment = .center
+        stack.addArrangedSubview(version)
     }
 
     private func makeSwitch(title: String, isOn: Bool, onChange: @escaping (Bool) -> Void) -> UIView {
@@ -192,9 +217,14 @@ private class GlassSettingsViewController: UIViewController {
 
     @objc private func resetDefaults() {
         prefs.resetToDefaults()
-        // Rebuild UI
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         buildUI()
+    }
+
+    @objc private func openDiscord() {
+        if let url = URL(string: "https://discord.gg/SxtnSjDvu") {
+            UIApplication.shared.open(url)
+        }
     }
 
     @objc private func close() {
