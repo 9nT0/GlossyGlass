@@ -20,6 +20,7 @@ let package = Package(
             exclude: [
                 "Package.swift",
                 "README.md",
+                "RELEASE-v2.1.md",
                 "build-dylib.yml",
                 "HOW-TO-UPLOAD.txt",
                 "build.cmd"
