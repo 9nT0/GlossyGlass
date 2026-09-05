@@ -1,38 +1,36 @@
 import UIKit
 
-/// Clean, light, adaptive TabBar + NavigationBar styling
-/// Now respects GlassPreferences (can be disabled individually)
+/// Improved navigation & tab bar styling aiming for a more modern liquid-glass feel
 @objc public class GlassNavigationHelper: NSObject {
 
-    /// Applies a clean translucent style to UITabBar (call once)
     @objc public static func applyTabBarStyle(to tabBar: UITabBar) {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled && prefs.styleTabBar else {
-            prefs.log("TabBar styling skipped (disabled in preferences)")
+            prefs.log("TabBar styling skipped")
             return
         }
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
 
-        // Material choice based on lightweight mode
         let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
             ? .systemUltraThinMaterial
-            : .systemThinMaterial
+            : (prefs.glassMode == 1 ? .systemThinMaterial : .systemMaterial)
+
         appearance.backgroundEffect = UIBlurEffect(style: blurStyle)
         appearance.backgroundColor = UIColor.clear
         appearance.shadowColor = .clear
         appearance.shadowImage = UIImage()
 
         let item = UITabBarItemAppearance()
-        item.normal.iconColor = UIColor.label.withAlphaComponent(0.42)
+        item.normal.iconColor = UIColor.label.withAlphaComponent(0.40)
         item.selected.iconColor = .label
 
         let normalFont = UIFont.systemFont(ofSize: 10, weight: .medium)
         let selectedFont = UIFont.systemFont(ofSize: 10, weight: .semibold)
 
         item.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.label.withAlphaComponent(0.42),
+            .foregroundColor: UIColor.label.withAlphaComponent(0.40),
             .font: normalFont
         ]
         item.selected.titleTextAttributes = [
@@ -47,21 +45,25 @@ import UIKit
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance
 
-        // Soft floating shadow (very light)
+        // Soft floating shadow
         tabBar.clipsToBounds = false
         tabBar.layer.shadowColor = UIColor.black.cgColor
-        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.04 : 0.06
-        tabBar.layer.shadowRadius = 16
-        tabBar.layer.shadowOffset = CGSize(width: 0, height: -5)
+        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.05 : 0.08
+        tabBar.layer.shadowRadius = 18
+        tabBar.layer.shadowOffset = CGSize(width: 0, height: -4)
 
-        prefs.log("TabBar style applied")
+        // Continuous corners feel
+        if #available(iOS 13.0, *) {
+            tabBar.layer.cornerCurve = .continuous
+        }
+
+        prefs.log("TabBar style applied (mode \(prefs.glassMode))")
     }
 
-    /// Applies a clean translucent style to UINavigationBar (call once)
     @objc public static func applyNavigationBarStyle(to navigationBar: UINavigationBar) {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled && prefs.styleNavigationBar else {
-            prefs.log("NavigationBar styling skipped (disabled in preferences)")
+            prefs.log("NavigationBar styling skipped")
             return
         }
 
@@ -70,7 +72,8 @@ import UIKit
 
         let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
             ? .systemUltraThinMaterial
-            : .systemThinMaterial
+            : (prefs.glassMode == 1 ? .systemThinMaterial : .systemMaterial)
+
         appearance.backgroundEffect = UIBlurEffect(style: blurStyle)
         appearance.backgroundColor = UIColor.clear
         appearance.shadowColor = .clear

@@ -1,6 +1,5 @@
 import UIKit
 
-/// A small glass settings button that can be placed next to other tweak buttons (e.g. on profile).
 @objc public class GlassSettingsButton: GlassButton {
 
     public override init(frame: CGRect) {
@@ -26,7 +25,6 @@ import UIKit
     }
 }
 
-/// Presents a simple settings panel for GlossyGlass
 @objc public class GlassSettingsPresenter: NSObject {
 
     @objc public static func present(from sourceView: UIView? = nil) {
@@ -36,9 +34,7 @@ import UIKit
             .first(where: { $0.isKeyWindow })?.rootViewController else { return }
 
         var top = root
-        while let presented = top.presentedViewController {
-            top = presented
-        }
+        while let presented = top.presentedViewController { top = presented }
 
         let nav = UINavigationController(rootViewController: GlassSettingsViewController())
         nav.modalPresentationStyle = .pageSheet
@@ -49,12 +45,9 @@ import UIKit
                 sheet.prefersGrabberVisible = true
             }
         }
-
         top.present(nav, animated: true)
     }
 }
-
-// MARK: - Settings View Controller
 
 private class GlassSettingsViewController: UIViewController {
 
@@ -66,11 +59,7 @@ private class GlassSettingsViewController: UIViewController {
         view.backgroundColor = .systemBackground
         title = "GlossyGlass"
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .done,
-            target: self,
-            action: #selector(close)
-        )
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(close))
 
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -78,7 +67,7 @@ private class GlassSettingsViewController: UIViewController {
 
         stack = UIStackView()
         stack.axis = .vertical
-        stack.spacing = 18
+        stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
 
@@ -87,8 +76,7 @@ private class GlassSettingsViewController: UIViewController {
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            stack.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 24),
+            stack.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 20),
             stack.leadingAnchor.constraint(equalTo: scroll.leadingAnchor, constant: 20),
             stack.trailingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: -20),
             stack.bottomAnchor.constraint(equalTo: scroll.bottomAnchor, constant: -40),
@@ -100,125 +88,147 @@ private class GlassSettingsViewController: UIViewController {
 
     private func buildUI() {
         // Master
-        stack.addArrangedSubview(makeSwitch(title: "Enable GlossyGlass", isOn: prefs.isEnabled) { [weak self] on in
-            self?.prefs.isEnabled = on
-        })
+        stack.addArrangedSubview(makeSwitch("Enable GlossyGlass", isOn: prefs.isEnabled) { [weak self] v in self?.prefs.isEnabled = v })
+
+        // Presets
+        stack.addArrangedSubview(sectionLabel("Presets"))
+        let presetRow = UIStackView()
+        presetRow.axis = .horizontal
+        presetRow.spacing = 8
+        presetRow.distribution = .fillEqually
+        for name in ["Clean", "Default", "Heavy", "Performance"] {
+            let b = UIButton(type: .system)
+            b.setTitle(name, for: .normal)
+            b.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+            b.backgroundColor = .secondarySystemBackground
+            b.layer.cornerRadius = 8
+            b.addAction(UIAction { [weak self] _ in
+                self?.prefs.applyPreset(name)
+                self?.reload()
+            }, for: .touchUpInside)
+            presetRow.addArrangedSubview(b)
+        }
+        stack.addArrangedSubview(presetRow)
 
         // Intensity
-        stack.addArrangedSubview(makeSlider(title: "Gloss Intensity", value: Float(prefs.glossIntensity)) { [weak self] v in
-            self?.prefs.glossIntensity = CGFloat(v)
-        })
+        stack.addArrangedSubview(makeSlider("Light Mode Intensity", value: Float(prefs.lightIntensity)) { [weak self] v in self?.prefs.lightIntensity = CGFloat(v) })
+        stack.addArrangedSubview(makeSlider("Dark Mode Intensity", value: Float(prefs.darkIntensity)) { [weak self] v in self?.prefs.darkIntensity = CGFloat(v) })
 
-        // Lightweight
-        stack.addArrangedSubview(makeSwitch(title: "Lightweight Mode", isOn: prefs.lightweightMode) { [weak self] on in
-            self?.prefs.lightweightMode = on
-        })
+        // Mode
+        stack.addArrangedSubview(sectionLabel("Glass Mode"))
+        let mode = UISegmentedControl(items: ["Frosted", "Clear", "Tinted"])
+        mode.selectedSegmentIndex = prefs.glassMode
+        mode.addAction(UIAction { [weak self] action in
+            self?.prefs.glassMode = (action.sender as! UISegmentedControl).selectedSegmentIndex
+        }, for: .valueChanged)
+        stack.addArrangedSubview(mode)
 
-        // Section: Elements
-        let section = UILabel()
-        section.text = "Elements"
-        section.font = .systemFont(ofSize: 13, weight: .semibold)
-        section.textColor = .secondaryLabel
-        stack.addArrangedSubview(section)
+        stack.addArrangedSubview(makeSwitch("Lightweight Mode", isOn: prefs.lightweightMode) { [weak self] v in self?.prefs.lightweightMode = v })
+        stack.addArrangedSubview(makeSwitch("Chromatic Aberration", isOn: prefs.chromaticAberration) { [weak self] v in self?.prefs.chromaticAberration = v })
 
-        stack.addArrangedSubview(makeSwitch(title: "Navigation Bar", isOn: prefs.styleNavigationBar) { [weak self] on in
-            self?.prefs.styleNavigationBar = on
-        })
-        stack.addArrangedSubview(makeSwitch(title: "Tab Bar", isOn: prefs.styleTabBar) { [weak self] on in
-            self?.prefs.styleTabBar = on
-        })
-        stack.addArrangedSubview(makeSwitch(title: "Buttons", isOn: prefs.styleButtons) { [weak self] on in
-            self?.prefs.styleButtons = on
-        })
-        stack.addArrangedSubview(makeSwitch(title: "Cards", isOn: prefs.styleCards) { [weak self] on in
-            self?.prefs.styleCards = on
-        })
+        // Elements
+        stack.addArrangedSubview(sectionLabel("Elements"))
+        stack.addArrangedSubview(makeSwitch("Navigation Bar", isOn: prefs.styleNavigationBar) { [weak self] v in self?.prefs.styleNavigationBar = v })
+        stack.addArrangedSubview(makeSwitch("Tab Bar", isOn: prefs.styleTabBar) { [weak self] v in self?.prefs.styleTabBar = v })
+        stack.addArrangedSubview(makeSwitch("Buttons", isOn: prefs.styleButtons) { [weak self] v in self?.prefs.styleButtons = v })
+        stack.addArrangedSubview(makeSwitch("Cards", isOn: prefs.styleCards) { [weak self] v in self?.prefs.styleCards = v })
+        stack.addArrangedSubview(makeSwitch("Show Glass Button", isOn: prefs.showGlassButton) { [weak self] v in self?.prefs.showGlassButton = v })
 
         // Debug
-        stack.addArrangedSubview(makeSwitch(title: "Debug Logging", isOn: prefs.debugLogging) { [weak self] on in
-            self?.prefs.debugLogging = on
-        })
+        stack.addArrangedSubview(sectionLabel("Debug"))
+        stack.addArrangedSubview(makeSwitch("Debug Logging", isOn: prefs.debugLogging) { [weak self] v in self?.prefs.debugLogging = v })
+        stack.addArrangedSubview(makeSwitch("Debug Overlay", isOn: prefs.debugOverlay) { [weak self] v in self?.prefs.debugOverlay = v })
 
-        // Reset
-        let reset = UIButton(type: .system)
-        reset.setTitle("Reset to Defaults", for: .normal)
-        reset.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        reset.addTarget(self, action: #selector(resetDefaults), for: .touchUpInside)
-        stack.addArrangedSubview(reset)
+        // Actions
+        let resetStyles = UIButton(type: .system)
+        resetStyles.setTitle("Reset Styles Only", for: .normal)
+        resetStyles.addTarget(self, action: #selector(resetStylesOnly), for: .touchUpInside)
+        stack.addArrangedSubview(resetStyles)
+
+        let resetAll = UIButton(type: .system)
+        resetAll.setTitle("Reset to Defaults", for: .normal)
+        resetAll.addTarget(self, action: #selector(resetAll), for: .touchUpInside)
+        stack.addArrangedSubview(resetAll)
 
         // Branding
         let spacer = UIView()
-        spacer.heightAnchor.constraint(equalToConstant: 12).isActive = true
+        spacer.heightAnchor.constraint(equalToConstant: 16).isActive = true
         stack.addArrangedSubview(spacer)
 
         let madeBy = UILabel()
         madeBy.text = "Made by Killswitch"
         madeBy.font = .systemFont(ofSize: 14, weight: .semibold)
-        madeBy.textColor = .label
         madeBy.textAlignment = .center
         stack.addArrangedSubview(madeBy)
 
-        let discordBtn = UIButton(type: .system)
-        discordBtn.setTitle("discord.gg/SxtnSjDvu", for: .normal)
-        discordBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        discordBtn.addTarget(self, action: #selector(openDiscord), for: .touchUpInside)
-        stack.addArrangedSubview(discordBtn)
+        let discord = UIButton(type: .system)
+        discord.setTitle("discord.gg/SxtnSjDvu", for: .normal)
+        discord.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        discord.addTarget(self, action: #selector(openDiscord), for: .touchUpInside)
+        stack.addArrangedSubview(discord)
 
-        let version = UILabel()
-        version.text = "GlossyGlass v1.0"
-        version.font = .systemFont(ofSize: 12, weight: .regular)
-        version.textColor = .tertiaryLabel
-        version.textAlignment = .center
-        stack.addArrangedSubview(version)
+        let ver = UILabel()
+        ver.text = "GlossyGlass v2.0"
+        ver.font = .systemFont(ofSize: 12)
+        ver.textColor = .tertiaryLabel
+        ver.textAlignment = .center
+        stack.addArrangedSubview(ver)
     }
 
-    private func makeSwitch(title: String, isOn: Bool, onChange: @escaping (Bool) -> Void) -> UIView {
+    private func sectionLabel(_ text: String) -> UILabel {
+        let l = UILabel()
+        l.text = text
+        l.font = .systemFont(ofSize: 13, weight: .semibold)
+        l.textColor = .secondaryLabel
+        return l
+    }
+
+    private func makeSwitch(_ title: String, isOn: Bool, onChange: @escaping (Bool) -> Void) -> UIView {
         let row = UIStackView()
         row.axis = .horizontal
         row.alignment = .center
-
         let label = UILabel()
         label.text = title
         label.font = .systemFont(ofSize: 16)
-
         let sw = UISwitch()
         sw.isOn = isOn
-        sw.addAction(UIAction { action in
-            onChange((action.sender as! UISwitch).isOn)
-        }, for: .valueChanged)
-
+        sw.addAction(UIAction { a in onChange((a.sender as! UISwitch).isOn) }, for: .valueChanged)
         row.addArrangedSubview(label)
-        row.addArrangedSubview(UIView()) // spacer
+        row.addArrangedSubview(UIView())
         row.addArrangedSubview(sw)
         return row
     }
 
-    private func makeSlider(title: String, value: Float, onChange: @escaping (Float) -> Void) -> UIView {
-        let container = UIStackView()
-        container.axis = .vertical
-        container.spacing = 6
-
-        let label = UILabel()
-        label.text = title
-        label.font = .systemFont(ofSize: 16)
-
-        let slider = UISlider()
-        slider.minimumValue = 0
-        slider.maximumValue = 1
-        slider.value = value
-        slider.addAction(UIAction { action in
-            onChange((action.sender as! UISlider).value)
-        }, for: .valueChanged)
-
-        container.addArrangedSubview(label)
-        container.addArrangedSubview(slider)
-        return container
+    private func makeSlider(_ title: String, value: Float, onChange: @escaping (Float) -> Void) -> UIView {
+        let c = UIStackView()
+        c.axis = .vertical
+        c.spacing = 4
+        let l = UILabel()
+        l.text = title
+        l.font = .systemFont(ofSize: 15)
+        let s = UISlider()
+        s.minimumValue = 0
+        s.maximumValue = 1
+        s.value = value
+        s.addAction(UIAction { a in onChange((a.sender as! UISlider).value) }, for: .valueChanged)
+        c.addArrangedSubview(l)
+        c.addArrangedSubview(s)
+        return c
     }
 
-    @objc private func resetDefaults() {
-        prefs.resetToDefaults()
+    private func reload() {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         buildUI()
+    }
+
+    @objc private func resetStylesOnly() {
+        prefs.resetStylesOnly()
+        reload()
+    }
+
+    @objc private func resetAll() {
+        prefs.resetToDefaults()
+        reload()
     }
 
     @objc private func openDiscord() {

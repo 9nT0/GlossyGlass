@@ -4,7 +4,7 @@ import UIKit
 
     private let glass = GlassView()
 
-    @objc public var glossIntensity: CGFloat = 0.50 {
+    @objc public var glossIntensity: CGFloat = 0.55 {
         didSet { glass.glossIntensity = glossIntensity }
     }
 
@@ -23,13 +23,6 @@ import UIKit
     }
 
     private func setup() {
-        // Respect preference for buttons
-        guard GlassPreferences.shared.styleButtons else {
-            // Still create a basic button look if styling is disabled
-            backgroundColor = .clear
-            return
-        }
-
         backgroundColor = .clear
         glass.isUserInteractionEnabled = false
         glass.isInteractive = false
@@ -48,22 +41,26 @@ import UIKit
         setTitleColor(.label.withAlphaComponent(0.55), for: .highlighted)
         contentEdgeInsets = UIEdgeInsets(top: 12, left: 18, bottom: 12, right: 18)
 
-        // Observe preference changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(preferencesChanged),
             name: .glassPreferencesDidChange,
             object: nil
         )
+        preferencesChanged()
     }
 
     @objc private func preferencesChanged() {
-        glass.isHidden = !GlassPreferences.shared.isEnabled || !GlassPreferences.shared.styleButtons
+        let prefs = GlassPreferences.shared
+        glass.isHidden = !prefs.isEnabled || !prefs.styleButtons
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
         glass.cornerRadius = min(bounds.height / 2.2, 20)
+        if #available(iOS 13.0, *) {
+            glass.layer.cornerCurve = .continuous
+        }
     }
 
     public override var isHighlighted: Bool {

@@ -1,16 +1,14 @@
 import UIKit
 
-/// Smoother spring animations and iOS 26-style press / long-press feedback
 @objc public class GlassAnimations: NSObject {
 
-    // MARK: - Standard press (used by GlassView / GlassButton)
-
     @objc public static func pressIn(_ view: UIView, scale: CGFloat = 0.965) {
+        let prefs = GlassPreferences.shared
         UIView.animate(
-            withDuration: 0.22,
+            withDuration: prefs.springResponse,
             delay: 0,
-            usingSpringWithDamping: 0.68,
-            initialSpringVelocity: 0.6,
+            usingSpringWithDamping: prefs.springDamping,
+            initialSpringVelocity: 0.55,
             options: [.allowUserInteraction, .beginFromCurrentState]
         ) {
             view.transform = CGAffineTransform(scaleX: scale, y: scale)
@@ -18,24 +16,21 @@ import UIKit
     }
 
     @objc public static func pressOut(_ view: UIView) {
+        let prefs = GlassPreferences.shared
         UIView.animate(
-            withDuration: 0.32,
+            withDuration: prefs.springResponse + 0.06,
             delay: 0,
-            usingSpringWithDamping: 0.72,
-            initialSpringVelocity: 0.45,
+            usingSpringWithDamping: prefs.springDamping + 0.04,
+            initialSpringVelocity: 0.4,
             options: [.allowUserInteraction, .beginFromCurrentState]
         ) {
             view.transform = .identity
         }
     }
 
-    // MARK: - iOS 26 style long-press / message lift
-
-    /// Applies a soft “lifted glass” look when long-pressing a message or cell
     @objc public static func longPressLift(_ view: UIView, intensity: CGFloat = 1.0) {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled else { return }
-
         let lift: CGFloat = 1.03 * intensity
         let shadowOpacity: Float = prefs.lightweightMode ? 0.12 : 0.18
 
@@ -65,21 +60,6 @@ import UIKit
             view.transform = .identity
             view.layer.shadowOpacity = 0
             view.layer.shadowRadius = 0
-        }
-    }
-
-    // MARK: - Fade appearance
-
-    @objc public static func fadeInGlass(_ view: UIView, duration: TimeInterval = 0.35) {
-        view.alpha = 0
-        UIView.animate(
-            withDuration: duration,
-            delay: 0,
-            usingSpringWithDamping: 0.85,
-            initialSpringVelocity: 0.3,
-            options: [.allowUserInteraction]
-        ) {
-            view.alpha = 1
         }
     }
 }
