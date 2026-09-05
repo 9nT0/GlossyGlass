@@ -36,8 +36,7 @@ When the dylib is injected it will:
 - Feather
 - Any major sideloading app that supports dylib injection
 
-### Manual API (Optional)
-```swift
-GlassInjector.start()                    // already called automatically
-GlassSettingsPresenter.present()         // open settings
-GlassLongPress.enable(on: someView)      // nice long-press effect
+### Notes
+- This is **v1**. Any bugs will be fixed in v2.
+- No need to build anything — just download from Releases.
+- The settings panel shows creator + Discord link.
