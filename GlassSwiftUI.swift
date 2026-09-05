@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct GlassViewRepresentable: UIViewRepresentable {
     public var cornerRadius: CGFloat = 22
-    public var gloss: CGFloat = 0.55
+    public var gloss: CGFloat = 0.50
     public var interactive: Bool = false
     public var customTint: UIColor? = nil
 
@@ -26,14 +26,16 @@ public struct GlassViewRepresentable: UIViewRepresentable {
 public extension View {
     func glassBackground(
         cornerRadius: CGFloat = 22,
-        gloss: CGFloat = 0.55,
+        gloss: CGFloat = 0.50,
         interactive: Bool = false,
         customTint: UIColor? = nil
     ) -> some View {
+        // Respect global preferences
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled && prefs.styleCards else {
             return AnyView(self)
         }
+
         return AnyView(
             background(
                 GlassViewRepresentable(
@@ -73,7 +75,7 @@ public struct GlassButtonStyle: ButtonStyle {
                     if enabled {
                         GlassViewRepresentable(
                             cornerRadius: 20,
-                            gloss: configuration.isPressed ? 0.65 : 0.55
+                            gloss: configuration.isPressed ? 0.62 : 0.50
                         )
                     } else {
                         Color.clear
@@ -81,7 +83,7 @@ public struct GlassButtonStyle: ButtonStyle {
                 }
             )
             .scaleEffect(configuration.isPressed && enabled ? 0.965 : 1)
-            .animation(.spring(response: prefs.springResponse, dampingFraction: prefs.springDamping), value: configuration.isPressed)
+            .animation(.spring(response: 0.26, dampingFraction: 0.72), value: configuration.isPressed)
     }
 }
 

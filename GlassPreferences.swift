@@ -1,31 +1,31 @@
 import UIKit
 import Foundation
 
-/// Advanced preferences for GlossyGlass v2
 @objc public class GlassPreferences: NSObject {
 
     private static let suiteName = "com.glossyglass.preferences"
 
     private enum Key: String {
         case enabled              = "GG_Enabled"
-        case glossIntensity       = "GG_GlossIntensity"
+        case style                = "GG_Style"           // Frosted / Clear / Tinted
+        case intensity            = "GG_Intensity"
+        case opacity              = "GG_Opacity"
+        case blurEnabled          = "GG_BlurEnabled"
+        case vibrancyEnabled      = "GG_VibrancyEnabled"
+        case noiseEnabled         = "GG_NoiseEnabled"
+        case lightBloomEnabled    = "GG_LightBloomEnabled"
+        case cornerRadius         = "GG_CornerRadius"
+        case saturation           = "GG_Saturation"
+        case dimming              = "GG_Dimming"
         case lightIntensity       = "GG_LightIntensity"
         case darkIntensity        = "GG_DarkIntensity"
-        case useCustomTint        = "GG_UseCustomTint"
-        case customTintHex        = "GG_CustomTintHex"
-        case lightweightMode      = "GG_LightweightMode"
-        case glassMode            = "GG_GlassMode"          // 0=Frosted, 1=Clear, 2=Tinted
+        case hideGlassButton      = "GG_HideGlassButton"
         case styleNavigationBar   = "GG_StyleNavigationBar"
         case styleTabBar          = "GG_StyleTabBar"
         case styleButtons         = "GG_StyleButtons"
         case styleCards           = "GG_StyleCards"
-        case showGlassButton      = "GG_ShowGlassButton"
-        case springResponse       = "GG_SpringResponse"
-        case springDamping        = "GG_SpringDamping"
         case debugLogging         = "GG_DebugLogging"
-        case debugOverlay         = "GG_DebugOverlay"
-        case activeProfile        = "GG_ActiveProfile"
-        case chromaticAberration  = "GG_ChromaticAberration"
+        case preset               = "GG_Preset"
     }
 
     @objc public static let shared = GlassPreferences()
@@ -44,24 +44,25 @@ import Foundation
     private func registerDefaults() {
         defaults.register(defaults: [
             Key.enabled.rawValue            : true,
-            Key.glossIntensity.rawValue     : 0.55,
+            Key.style.rawValue              : "Frosted",
+            Key.intensity.rawValue          : 0.72,
+            Key.opacity.rawValue            : 0.85,
+            Key.blurEnabled.rawValue        : true,
+            Key.vibrancyEnabled.rawValue    : true,
+            Key.noiseEnabled.rawValue       : false,
+            Key.lightBloomEnabled.rawValue  : true,
+            Key.cornerRadius.rawValue       : 24.0,
+            Key.saturation.rawValue         : 0.65,
+            Key.dimming.rawValue            : 0.30,
             Key.lightIntensity.rawValue     : 0.55,
-            Key.darkIntensity.rawValue      : 0.40,
-            Key.useCustomTint.rawValue      : false,
-            Key.customTintHex.rawValue      : "",
-            Key.lightweightMode.rawValue    : false,
-            Key.glassMode.rawValue          : 0,
+            Key.darkIntensity.rawValue      : 0.45,
+            Key.hideGlassButton.rawValue    : false,
             Key.styleNavigationBar.rawValue : true,
             Key.styleTabBar.rawValue        : true,
             Key.styleButtons.rawValue       : true,
             Key.styleCards.rawValue         : true,
-            Key.showGlassButton.rawValue    : true,
-            Key.springResponse.rawValue     : 0.28,
-            Key.springDamping.rawValue      : 0.72,
             Key.debugLogging.rawValue       : false,
-            Key.debugOverlay.rawValue       : false,
-            Key.activeProfile.rawValue      : "Default",
-            Key.chromaticAberration.rawValue: false
+            Key.preset.rawValue             : "Default"
         ])
     }
 
@@ -72,14 +73,61 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.enabled.rawValue); notifyChange() }
     }
 
-    @objc public var glossIntensity: CGFloat {
-        get { CGFloat(defaults.double(forKey: Key.glossIntensity.rawValue)) }
-        set {
-            let v = max(0, min(1, newValue))
-            defaults.set(Double(v), forKey: Key.glossIntensity.rawValue)
-            notifyChange()
-        }
+    @objc public var style: String {
+        get { defaults.string(forKey: Key.style.rawValue) ?? "Frosted" }
+        set { defaults.set(newValue, forKey: Key.style.rawValue); notifyChange() }
     }
+
+    @objc public var intensity: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.intensity.rawValue)) }
+        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.intensity.rawValue); notifyChange() }
+    }
+
+    @objc public var opacity: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.opacity.rawValue)) }
+        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.opacity.rawValue); notifyChange() }
+    }
+
+    // MARK: - Effects
+
+    @objc public var blurEnabled: Bool {
+        get { defaults.bool(forKey: Key.blurEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.blurEnabled.rawValue); notifyChange() }
+    }
+
+    @objc public var vibrancyEnabled: Bool {
+        get { defaults.bool(forKey: Key.vibrancyEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.vibrancyEnabled.rawValue); notifyChange() }
+    }
+
+    @objc public var noiseEnabled: Bool {
+        get { defaults.bool(forKey: Key.noiseEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.noiseEnabled.rawValue); notifyChange() }
+    }
+
+    @objc public var lightBloomEnabled: Bool {
+        get { defaults.bool(forKey: Key.lightBloomEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.lightBloomEnabled.rawValue); notifyChange() }
+    }
+
+    // MARK: - Advanced
+
+    @objc public var cornerRadius: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.cornerRadius.rawValue)) }
+        set { defaults.set(Double(newValue), forKey: Key.cornerRadius.rawValue); notifyChange() }
+    }
+
+    @objc public var saturation: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.saturation.rawValue)) }
+        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.saturation.rawValue); notifyChange() }
+    }
+
+    @objc public var dimming: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.dimming.rawValue)) }
+        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.dimming.rawValue); notifyChange() }
+    }
+
+    // MARK: - Extra
 
     @objc public var lightIntensity: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.lightIntensity.rawValue)) }
@@ -91,39 +139,9 @@ import Foundation
         set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.darkIntensity.rawValue); notifyChange() }
     }
 
-    @objc public var useCustomTint: Bool {
-        get { defaults.bool(forKey: Key.useCustomTint.rawValue) }
-        set { defaults.set(newValue, forKey: Key.useCustomTint.rawValue); notifyChange() }
-    }
-
-    @objc public var customTint: UIColor? {
-        get {
-            guard useCustomTint,
-                  let hex = defaults.string(forKey: Key.customTintHex.rawValue),
-                  !hex.isEmpty else { return nil }
-            return UIColor(gg_hex: hex)
-        }
-        set {
-            if let color = newValue {
-                defaults.set(color.gg_toHex(), forKey: Key.customTintHex.rawValue)
-                defaults.set(true, forKey: Key.useCustomTint.rawValue)
-            } else {
-                defaults.set("", forKey: Key.customTintHex.rawValue)
-                defaults.set(false, forKey: Key.useCustomTint.rawValue)
-            }
-            notifyChange()
-        }
-    }
-
-    @objc public var lightweightMode: Bool {
-        get { defaults.bool(forKey: Key.lightweightMode.rawValue) }
-        set { defaults.set(newValue, forKey: Key.lightweightMode.rawValue); notifyChange() }
-    }
-
-    /// 0 = Frosted, 1 = Clear, 2 = Tinted
-    @objc public var glassMode: Int {
-        get { defaults.integer(forKey: Key.glassMode.rawValue) }
-        set { defaults.set(newValue, forKey: Key.glassMode.rawValue); notifyChange() }
+    @objc public var hideGlassButton: Bool {
+        get { defaults.bool(forKey: Key.hideGlassButton.rawValue) }
+        set { defaults.set(newValue, forKey: Key.hideGlassButton.rawValue); notifyChange() }
     }
 
     @objc public var styleNavigationBar: Bool {
@@ -146,114 +164,52 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.styleCards.rawValue); notifyChange() }
     }
 
-    @objc public var showGlassButton: Bool {
-        get { defaults.bool(forKey: Key.showGlassButton.rawValue) }
-        set { defaults.set(newValue, forKey: Key.showGlassButton.rawValue); notifyChange() }
-    }
-
-    @objc public var springResponse: CGFloat {
-        get { CGFloat(defaults.double(forKey: Key.springResponse.rawValue)) }
-        set { defaults.set(Double(newValue), forKey: Key.springResponse.rawValue); notifyChange() }
-    }
-
-    @objc public var springDamping: CGFloat {
-        get { CGFloat(defaults.double(forKey: Key.springDamping.rawValue)) }
-        set { defaults.set(Double(newValue), forKey: Key.springDamping.rawValue); notifyChange() }
-    }
-
     @objc public var debugLogging: Bool {
         get { defaults.bool(forKey: Key.debugLogging.rawValue) }
         set { defaults.set(newValue, forKey: Key.debugLogging.rawValue) }
     }
 
-    @objc public var debugOverlay: Bool {
-        get { defaults.bool(forKey: Key.debugOverlay.rawValue) }
-        set { defaults.set(newValue, forKey: Key.debugOverlay.rawValue); notifyChange() }
-    }
-
-    @objc public var activeProfile: String {
-        get { defaults.string(forKey: Key.activeProfile.rawValue) ?? "Default" }
-        set { defaults.set(newValue, forKey: Key.activeProfile.rawValue); notifyChange() }
-    }
-
-    @objc public var chromaticAberration: Bool {
-        get { defaults.bool(forKey: Key.chromaticAberration.rawValue) }
-        set { defaults.set(newValue, forKey: Key.chromaticAberration.rawValue); notifyChange() }
+    @objc public var preset: String {
+        get { defaults.string(forKey: Key.preset.rawValue) ?? "Default" }
+        set { defaults.set(newValue, forKey: Key.preset.rawValue) }
     }
 
     // MARK: - Presets
 
     @objc public func applyPreset(_ name: String) {
-        switch name.lowercased() {
-        case "clean":
-            glossIntensity = 0.35
-            lightIntensity = 0.35
-            darkIntensity = 0.28
-            lightweightMode = true
-            glassMode = 1
-            chromaticAberration = false
-        case "heavy":
-            glossIntensity = 0.75
-            lightIntensity = 0.75
-            darkIntensity = 0.60
-            lightweightMode = false
-            glassMode = 0
-            chromaticAberration = true
-        case "performance":
-            glossIntensity = 0.40
-            lightIntensity = 0.40
-            darkIntensity = 0.30
-            lightweightMode = true
-            glassMode = 1
-            chromaticAberration = false
+        preset = name
+        switch name {
+        case "Clean":
+            style = "Clear"; intensity = 0.40; opacity = 0.70
+            blurEnabled = true; vibrancyEnabled = false; noiseEnabled = false; lightBloomEnabled = false
+            cornerRadius = 20; saturation = 0.40; dimming = 0.15
+        case "Heavy":
+            style = "Frosted"; intensity = 0.90; opacity = 0.95
+            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = true; lightBloomEnabled = true
+            cornerRadius = 28; saturation = 0.80; dimming = 0.45
+        case "Performance":
+            style = "Clear"; intensity = 0.35; opacity = 0.60
+            blurEnabled = false; vibrancyEnabled = false; noiseEnabled = false; lightBloomEnabled = false
+            cornerRadius = 18; saturation = 0.30; dimming = 0.10
         default: // Default
-            glossIntensity = 0.55
-            lightIntensity = 0.55
-            darkIntensity = 0.40
-            lightweightMode = false
-            glassMode = 0
-            chromaticAberration = false
-        }
-        activeProfile = name
-        notifyChange()
-    }
-
-    // MARK: - Export / Import
-
-    @objc public func exportSettings() -> [String: Any] {
-        return defaults.dictionaryRepresentation().filter { key, _ in
-            key.hasPrefix("GG_")
-        }
-    }
-
-    @objc public func importSettings(_ dict: [String: Any]) {
-        for (key, value) in dict {
-            defaults.set(value, forKey: key)
+            style = "Frosted"; intensity = 0.72; opacity = 0.85
+            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = false; lightBloomEnabled = true
+            cornerRadius = 24; saturation = 0.65; dimming = 0.30
         }
         notifyChange()
     }
 
     @objc public func resetToDefaults() {
-        let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("GG_") }
-        keys.forEach { defaults.removeObject(forKey: $0) }
+        let domain = defaults.dictionaryRepresentation().keys
+        domain.forEach { defaults.removeObject(forKey: $0) }
         registerDefaults()
         notifyChange()
     }
 
-    @objc public func resetStylesOnly() {
-        styleNavigationBar = true
-        styleTabBar = true
-        styleButtons = true
-        styleCards = true
-        notifyChange()
-    }
-
-    // MARK: - Helpers
-
     private func notifyChange() {
         NotificationCenter.default.post(name: .glassPreferencesDidChange, object: nil)
         if debugLogging {
-            print("[GlossyGlass] Preferences updated – profile: \(activeProfile), intensity: \(glossIntensity)")
+            print("[GlossyGlass] Preferences updated")
         }
     }
 
@@ -265,36 +221,4 @@ import Foundation
 
 public extension Notification.Name {
     static let glassPreferencesDidChange = Notification.Name("GlassPreferencesDidChange")
-}
-
-// MARK: - Color helpers
-
-extension UIColor {
-    convenience init?(gg_hex: String) {
-        var hex = gg_hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if hex.hasPrefix("#") { hex.removeFirst() }
-        var rgb: UInt64 = 0
-        guard Scanner(string: hex).scanHexInt64(&rgb) else { return nil }
-        let r, g, b, a: CGFloat
-        switch hex.count {
-        case 6:
-            r = CGFloat((rgb & 0xFF0000) >> 16) / 255
-            g = CGFloat((rgb & 0x00FF00) >> 8) / 255
-            b = CGFloat(rgb & 0x0000FF) / 255
-            a = 1
-        case 8:
-            r = CGFloat((rgb & 0xFF000000) >> 24) / 255
-            g = CGFloat((rgb & 0x00FF0000) >> 16) / 255
-            b = CGFloat((rgb & 0x0000FF00) >> 8) / 255
-            a = CGFloat(rgb & 0x000000FF) / 255
-        default: return nil
-        }
-        self.init(red: r, green: g, blue: b, alpha: a)
-    }
-
-    func gg_toHex() -> String {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        getRed(&r, green: &g, blue: &b, alpha: &a)
-        return String(format: "#%02X%02X%02X", Int(r*255), Int(g*255), Int(b*255))
-    }
 }

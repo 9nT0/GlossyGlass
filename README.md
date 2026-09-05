@@ -3,7 +3,7 @@
 Advanced liquid glass UI for **iOS 17 – 18.x**
 
 Made by **Killswitch**  
-Discord: [discord.gg/SxtnSjDvu](https://discord.gg/Sxtn7SjDvu)
+Discord: [discord.gg/Sxtn7SjDvu](https://discord.gg/Sxtn7SjDvu)
 
 ---
 
@@ -38,8 +38,19 @@ Discord: [discord.gg/SxtnSjDvu](https://discord.gg/Sxtn7SjDvu)
 ### Settings
 Tap the **Glass** button on the profile page to open the settings panel.
 
+The panel includes:
+- **Appearance** — Style, Intensity, Opacity
+- **Effects** — Blur, Vibrancy, Noise, Light Bloom
+- **Advanced** — Corner Radius, Saturation, Dimming
+- Master switches + Hide Glass Button option
+
 ### Public API (optional)
 ```swift
 GlossyGlassAPI.shared.setEnabled(true)
 GlossyGlassAPI.shared.applyPreset("Heavy")
 GlossyGlassAPI.shared.presentSettings()
+```
+
+### Notes
+- Current version: **v2.1**
+- No need to build anything — just download from Releases.

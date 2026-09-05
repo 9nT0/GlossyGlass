@@ -1,6 +1,6 @@
 import UIKit
 
-/// Improved navigation & tab bar styling aiming for a more modern liquid-glass feel
+/// v2.1 – improved liquid-glass NavigationBar + TabBar
 @objc public class GlassNavigationHelper: NSObject {
 
     @objc public static func applyTabBarStyle(to tabBar: UITabBar) {
@@ -15,8 +15,7 @@ import UIKit
 
         let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
             ? .systemUltraThinMaterial
-            : (prefs.glassMode == 1 ? .systemThinMaterial : .systemMaterial)
-
+            : .systemThinMaterial
         appearance.backgroundEffect = UIBlurEffect(style: blurStyle)
         appearance.backgroundColor = UIColor.clear
         appearance.shadowColor = .clear
@@ -45,19 +44,19 @@ import UIKit
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance
 
-        // Soft floating shadow
+        // Soft floating feel
         tabBar.clipsToBounds = false
         tabBar.layer.shadowColor = UIColor.black.cgColor
-        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.05 : 0.08
+        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.04 : 0.07
         tabBar.layer.shadowRadius = 18
         tabBar.layer.shadowOffset = CGSize(width: 0, height: -4)
 
-        // Continuous corners feel
-        if #available(iOS 13.0, *) {
-            tabBar.layer.cornerCurve = .continuous
-        }
+        // Continuous corner feel
+        tabBar.layer.cornerRadius = 24
+        tabBar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        tabBar.layer.cornerCurve = .continuous
 
-        prefs.log("TabBar style applied (mode \(prefs.glassMode))")
+        prefs.log("TabBar style applied (v2.1)")
     }
 
     @objc public static func applyNavigationBarStyle(to navigationBar: UINavigationBar) {
@@ -72,8 +71,7 @@ import UIKit
 
         let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
             ? .systemUltraThinMaterial
-            : (prefs.glassMode == 1 ? .systemThinMaterial : .systemMaterial)
-
+            : .systemThinMaterial
         appearance.backgroundEffect = UIBlurEffect(style: blurStyle)
         appearance.backgroundColor = UIColor.clear
         appearance.shadowColor = .clear
@@ -92,6 +90,10 @@ import UIKit
         navigationBar.compactAppearance = appearance
         navigationBar.tintColor = .label
 
-        prefs.log("NavigationBar style applied")
+        // Soft continuous corners where possible
+        navigationBar.layer.cornerRadius = 0
+        navigationBar.layer.cornerCurve = .continuous
+
+        prefs.log("NavigationBar style applied (v2.1)")
     }
 }
