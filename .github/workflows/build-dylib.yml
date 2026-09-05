@@ -20,27 +20,42 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "SDK = $SDK"
 
+          # Force iOS target – this is the critical fix
           swift build -c release \
             --arch arm64 \
             -Xswiftc -sdk -Xswiftc "$SDK" \
             -Xswiftc -target -Xswiftc arm64-apple-ios17.0 \
             -Xcc -isysroot -Xcc "$SDK" \
-            -Xcxx -isysroot -Xcxx "$SDK"
+            -Xcxx -isysroot -Xcxx "$SDK" \
+            -Xlinker -ios_version_min -Xlinker 17.0
 
-      - name: Package the dylib
+      - name: Package & verify the dylib
         run: |
           mkdir -p output
           BINARY=$(find .build -type f \( -name "libGlossyGlass.dylib" -o -name "GlossyGlass" \) | head -1)
 
           if [ -z "$BINARY" ]; then
-            echo "=== DEBUG ==="
-            find .build -type f | head -40
+            echo "=== DEBUG: no binary found ==="
+            find .build -type f | head -50
             exit 1
           fi
 
           echo "Found: $BINARY"
           cp "$BINARY" output/GlossyGlass.dylib
+
+          echo "=== file info ==="
           file output/GlossyGlass.dylib
+
+          echo "=== otool platform check ==="
+          otool -l output/GlossyGlass.dylib | grep -A5 LC_BUILD_VERSION || true
+          otool -l output/GlossyGlass.dylib | grep -A3 LC_VERSION_MIN_IPHONEOS || true
+
+          # Fail the build if it is still a macOS binary
+          if otool -l output/GlossyGlass.dylib | grep -q "platform 2"; then
+            echo "ERROR: Binary is still built for macOS (platform 2). Fix the target flags."
+            exit 1
+          fi
+
           ls -la output/
 
       - name: Upload
