@@ -14,59 +14,77 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Build iOS arm64 dylib (direct swiftc)
+      - name: Build real iOS arm64 dylib
         run: |
-          set -e
+          set -euo pipefail
 
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           TARGET="arm64-apple-ios17.0"
+
           echo "SDK    = $SDK"
           echo "Target = $TARGET"
           echo "Xcode  = $(xcodebuild -version | head -1)"
 
-          mkdir -p output
+          mkdir -p output build
 
-          # Only real source files – exclude Package.swift and docs
-          SOURCES=$(find . -name "*.swift" \
+          # Only Swift sources
+          mapfile -t SOURCES < <(find . -name "*.swift" \
             -not -name "Package.swift" \
             -not -path "./.build/*" \
             -not -path "./output/*" \
-            | tr '\n' ' ')
+            -not -path "./build/*")
 
-          echo "Sources:"
-          echo "$SOURCES" | tr ' ' '\n'
+          echo "Sources (${#SOURCES[@]}):"
+          printf '  %s\n' "${SOURCES[@]}"
 
-          # Compile to a real iOS dylib
+          # Compile all sources together into one object file
+          echo "Compiling..."
           xcrun --sdk iphoneos swiftc \
-            -emit-library \
-            -o output/GlossyGlass.dylib \
-            -module-name GlossyGlass \
+            -c \
             -target "$TARGET" \
             -sdk "$SDK" \
             -O \
             -whole-module-optimization \
             -parse-as-library \
-            $SOURCES
+            -module-name GlossyGlass \
+            -o build/GlossyGlass.o \
+            "${SOURCES[@]}"
+
+          echo "Linking with forced iOS platform..."
+          xcrun --sdk iphoneos clang++ \
+            -target "$TARGET" \
+            -isysroot "$SDK" \
+            -dynamiclib \
+            -o output/GlossyGlass.dylib \
+            -install_name "@rpath/GlossyGlass.dylib" \
+            -Xlinker -platform_version -Xlinker ios -Xlinker 17.0 -Xlinker 17.5 \
+            -Xlinker -ios_version_min -Xlinker 17.0 \
+            -framework Foundation \
+            -framework UIKit \
+            -framework SwiftUI \
+            -framework QuartzCore \
+            -framework CoreGraphics \
+            -framework CoreImage \
+            build/GlossyGlass.o
 
           echo ""
-          echo "=== file info ==="
+          echo "=== file ==="
           file output/GlossyGlass.dylib
 
           echo ""
           echo "=== LC_BUILD_VERSION ==="
-          otool -l output/GlossyGlass.dylib | grep -A6 LC_BUILD_VERSION || true
+          otool -l output/GlossyGlass.dylib | grep -A8 LC_BUILD_VERSION || true
 
-          # Fail if still macOS
           if otool -l output/GlossyGlass.dylib | grep -q "platform 2"; then
-            echo "ERROR: Binary is still macOS (platform 2)"
+            echo "ERROR: Still macOS (platform 2)"
             exit 1
           fi
 
           if otool -l output/GlossyGlass.dylib | grep -q "platform 1"; then
-            echo "SUCCESS: Confirmed iOS binary (platform 1)"
+            echo "✅ SUCCESS: Real iOS binary (platform 1)"
           else
-            echo "Platform check:"
-            otool -l output/GlossyGlass.dylib | grep -A8 LC_BUILD_VERSION || true
+            echo "No platform 2 detected"
+            otool -l output/GlossyGlass.dylib | grep -A10 LC_BUILD_VERSION || true
           fi
 
           ls -la output/
