@@ -24,17 +24,21 @@
 
 - Automatic start on load  
 - Runtime Settings Panel (“Glass” button)  
-- Continuous corner curves (modern iOS style)  
+- **Every setting actually affects the glass**  
+- Full layer stack: blur, vibrancy, dimming, tint, noise, gloss, bloom, edge highlight, border  
+- Continuous corner curves  
 - Separate Light & Dark intensity  
-- Frosted / Clear / Tinted glass modes  
-- Presets: **Clean · Default · Heavy · Performance**  
-- Smarter button detection with overcrowding protection  
-- Option to hide the Glass button  
-- Long-press lift effect for messages  
-- Adaptive Light / Dark Mode  
-- Public API for other tweaks  
-- Settings export / import  
-- Debug overlay  
+- Frosted / Clear / Tinted styles  
+- Presets: Clean · Default · Heavy · Performance  
+- Scored injection + single-host lock  
+- Hide Glass button  
+- Safe Mode  
+- Diagnostics panel  
+- Long-press lift for messages  
+- Reduce Transparency & Reduce Motion support  
+- JSON settings export / import  
+- Per-screen profile names  
+- Public API v3  
 - Fully compatible with **iOS 17 & 18.x**
 
 ---
@@ -51,20 +55,36 @@
 
 ### Settings
 
-Tap the **Glass** button on the profile page to open the panel.
-
-| Section       | Controls                                      |
-|---------------|-----------------------------------------------|
-| **Appearance**    | Style, Intensity, Opacity                     |
-| **Effects**       | Blur, Vibrancy, Noise, Light Bloom            |
-| **Advanced**      | Corner Radius, Saturation, Dimming            |
-| **Master**        | Enable, Lightweight Mode, Hide Glass Button   |
+| Section | Controls |
+|---------|----------|
+| **Appearance** | Style, Intensity, Opacity |
+| **Effects** | Blur, Vibrancy, Noise, Light Bloom |
+| **Advanced** | Corner Radius, Saturation, Dimming |
+| **Extra** | Edge Highlight, Haptics, Safe Mode |
+| **Master** | Enable, Lightweight, Hide Button, Nav/Tab/Buttons/Cards |
 
 ---
 
-### Public API (optional)
+### Public API
 
 ```swift
 GlossyGlassAPI.shared.setEnabled(true)
 GlossyGlassAPI.shared.applyPreset("Heavy")
 GlossyGlassAPI.shared.presentSettings()
+GlossyGlassAPI.shared.presentDiagnostics()
+GlossyGlassAPI.shared.forceRedetect()
+GlossyGlassAPI.shared.enterSafeMode()
+let json = GlossyGlassAPI.shared.exportSettingsJSON()
+```
+
+---
+
+### Notes
+
+- Current version: **v3**  
+- No need to build anything — just download from Releases  
+
+<p align="center">
+  <b>Made by Killswitch</b><br>
+  <a href="https://discord.gg/Sxtn7SjDvu">discord.gg/Sxtn7SjDvu</a>
+</p>
