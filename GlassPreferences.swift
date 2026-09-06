@@ -4,16 +4,19 @@ import Foundation
 @objc public class GlassPreferences: NSObject {
 
     private static let suiteName = "com.glossyglass.preferences"
+    private static let currentSettingsVersion = 3
 
     private enum Key: String {
+        case settingsVersion      = "GG_SettingsVersion"
         case enabled              = "GG_Enabled"
-        case style                = "GG_Style"           // Frosted / Clear / Tinted
+        case style                = "GG_Style"
         case intensity            = "GG_Intensity"
         case opacity              = "GG_Opacity"
         case blurEnabled          = "GG_BlurEnabled"
         case vibrancyEnabled      = "GG_VibrancyEnabled"
         case noiseEnabled         = "GG_NoiseEnabled"
         case lightBloomEnabled    = "GG_LightBloomEnabled"
+        case edgeHighlightEnabled = "GG_EdgeHighlightEnabled"
         case cornerRadius         = "GG_CornerRadius"
         case saturation           = "GG_Saturation"
         case dimming              = "GG_Dimming"
@@ -26,10 +29,20 @@ import Foundation
         case styleCards           = "GG_StyleCards"
         case debugLogging         = "GG_DebugLogging"
         case preset               = "GG_Preset"
+        case springResponse       = "GG_SpringResponse"
+        case springDamping        = "GG_SpringDamping"
+        case hapticsEnabled       = "GG_HapticsEnabled"
+        case safeMode             = "GG_SafeMode"
+        case crashCount           = "GG_CrashCount"
+        case screenProfileFeed    = "GG_Screen_Feed"
+        case screenProfileProfile = "GG_Screen_Profile"
+        case screenProfileMessages = "GG_Screen_Messages"
+        case screenProfileSettings = "GG_Screen_Settings"
     }
 
     @objc public static let shared = GlassPreferences()
     private let defaults: UserDefaults
+    private var notifyWorkItem: DispatchWorkItem?
 
     private override init() {
         if let suite = UserDefaults(suiteName: GlassPreferences.suiteName) {
@@ -39,10 +52,12 @@ import Foundation
         }
         super.init()
         registerDefaults()
+        migrateIfNeeded()
     }
 
     private func registerDefaults() {
         defaults.register(defaults: [
+            Key.settingsVersion.rawValue    : GlassPreferences.currentSettingsVersion,
             Key.enabled.rawValue            : true,
             Key.style.rawValue              : "Frosted",
             Key.intensity.rawValue          : 0.72,
@@ -51,20 +66,56 @@ import Foundation
             Key.vibrancyEnabled.rawValue    : true,
             Key.noiseEnabled.rawValue       : false,
             Key.lightBloomEnabled.rawValue  : true,
+            Key.edgeHighlightEnabled.rawValue : true,
             Key.cornerRadius.rawValue       : 24.0,
             Key.saturation.rawValue         : 0.65,
             Key.dimming.rawValue            : 0.30,
             Key.lightIntensity.rawValue     : 0.55,
             Key.darkIntensity.rawValue      : 0.45,
             Key.hideGlassButton.rawValue    : false,
-            "GG_LightweightMode"         : false,
+            "GG_LightweightMode"            : false,
             Key.styleNavigationBar.rawValue : true,
             Key.styleTabBar.rawValue        : true,
             Key.styleButtons.rawValue       : true,
             Key.styleCards.rawValue         : true,
             Key.debugLogging.rawValue       : false,
-            Key.preset.rawValue             : "Default"
+            Key.preset.rawValue             : "Default",
+            Key.springResponse.rawValue     : 0.28,
+            Key.springDamping.rawValue      : 0.72,
+            Key.hapticsEnabled.rawValue     : true,
+            Key.safeMode.rawValue           : false,
+            Key.crashCount.rawValue         : 0,
+            Key.screenProfileFeed.rawValue  : "Default",
+            Key.screenProfileProfile.rawValue : "Heavy",
+            Key.screenProfileMessages.rawValue : "Clear",
+            Key.screenProfileSettings.rawValue : "Off"
         ])
+    }
+
+    // MARK: - Migration
+
+    private func migrateIfNeeded() {
+        let version = defaults.integer(forKey: Key.settingsVersion.rawValue)
+        if version < 2 {
+            // v1 → v2: map old gloss intensity
+            if defaults.object(forKey: "GG_GlossIntensity") != nil {
+                let old = defaults.double(forKey: "GG_GlossIntensity")
+                intensity = CGFloat(old)
+                lightIntensity = CGFloat(old)
+                darkIntensity = CGFloat(old) * 0.85
+            }
+        }
+        if version < 3 {
+            // v2 → v3: ensure new keys exist with sane defaults
+            if defaults.object(forKey: Key.edgeHighlightEnabled.rawValue) == nil {
+                edgeHighlightEnabled = true
+            }
+            if defaults.object(forKey: Key.springResponse.rawValue) == nil {
+                springResponse = 0.28
+                springDamping = 0.72
+            }
+        }
+        defaults.set(GlassPreferences.currentSettingsVersion, forKey: Key.settingsVersion.rawValue)
     }
 
     // MARK: - Core
@@ -81,15 +132,13 @@ import Foundation
 
     @objc public var intensity: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.intensity.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.intensity.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.intensity.rawValue); notifyChangeDebounced() }
     }
 
     @objc public var opacity: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.opacity.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.opacity.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.opacity.rawValue); notifyChangeDebounced() }
     }
-
-    // MARK: - Effects
 
     @objc public var blurEnabled: Bool {
         get { defaults.bool(forKey: Key.blurEnabled.rawValue) }
@@ -111,33 +160,34 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.lightBloomEnabled.rawValue); notifyChange() }
     }
 
-    // MARK: - Advanced
+    @objc public var edgeHighlightEnabled: Bool {
+        get { defaults.bool(forKey: Key.edgeHighlightEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.edgeHighlightEnabled.rawValue); notifyChange() }
+    }
 
     @objc public var cornerRadius: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.cornerRadius.rawValue)) }
-        set { defaults.set(Double(newValue), forKey: Key.cornerRadius.rawValue); notifyChange() }
+        set { defaults.set(Double(max(0, min(40, newValue))), forKey: Key.cornerRadius.rawValue); notifyChangeDebounced() }
     }
 
     @objc public var saturation: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.saturation.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.saturation.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.saturation.rawValue); notifyChangeDebounced() }
     }
 
     @objc public var dimming: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.dimming.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.dimming.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.dimming.rawValue); notifyChangeDebounced() }
     }
-
-    // MARK: - Extra
 
     @objc public var lightIntensity: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.lightIntensity.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.lightIntensity.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.lightIntensity.rawValue); notifyChangeDebounced() }
     }
 
     @objc public var darkIntensity: CGFloat {
         get { CGFloat(defaults.double(forKey: Key.darkIntensity.rawValue)) }
-        set { defaults.set(Double(max(0, min(1, newValue))), forKey: Key.darkIntensity.rawValue); notifyChange() }
+        set { defaults.set(Double(clamp01(newValue)), forKey: Key.darkIntensity.rawValue); notifyChangeDebounced() }
     }
 
     @objc public var hideGlassButton: Bool {
@@ -175,8 +225,32 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.preset.rawValue) }
     }
 
+    @objc public var springResponse: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.springResponse.rawValue)) }
+        set { defaults.set(Double(max(0.1, min(1.0, newValue))), forKey: Key.springResponse.rawValue); notifyChange() }
+    }
 
-    // MARK: - Compatibility aliases (used by GlassView / NavHelper / etc.)
+    @objc public var springDamping: CGFloat {
+        get { CGFloat(defaults.double(forKey: Key.springDamping.rawValue)) }
+        set { defaults.set(Double(max(0.2, min(1.0, newValue))), forKey: Key.springDamping.rawValue); notifyChange() }
+    }
+
+    @objc public var hapticsEnabled: Bool {
+        get { defaults.bool(forKey: Key.hapticsEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: Key.hapticsEnabled.rawValue); notifyChange() }
+    }
+
+    @objc public var safeMode: Bool {
+        get { defaults.bool(forKey: Key.safeMode.rawValue) }
+        set { defaults.set(newValue, forKey: Key.safeMode.rawValue); notifyChange() }
+    }
+
+    @objc public var crashCount: Int {
+        get { defaults.integer(forKey: Key.crashCount.rawValue) }
+        set { defaults.set(newValue, forKey: Key.crashCount.rawValue) }
+    }
+
+    // MARK: - Compatibility aliases
 
     @objc public var glossIntensity: CGFloat {
         get { intensity }
@@ -185,10 +259,7 @@ import Foundation
 
     @objc public var lightweightMode: Bool {
         get { defaults.bool(forKey: "GG_LightweightMode") }
-        set {
-            defaults.set(newValue, forKey: "GG_LightweightMode")
-            notifyChange()
-        }
+        set { defaults.set(newValue, forKey: "GG_LightweightMode"); notifyChange() }
     }
 
     @objc public var customTint: UIColor? {
@@ -206,6 +277,29 @@ import Foundation
         }
     }
 
+    // MARK: - Per-screen profiles
+
+    @objc public func profileName(for screen: GlassScreen) -> String {
+        switch screen {
+        case .feed: return defaults.string(forKey: Key.screenProfileFeed.rawValue) ?? "Default"
+        case .profile: return defaults.string(forKey: Key.screenProfileProfile.rawValue) ?? "Heavy"
+        case .messages: return defaults.string(forKey: Key.screenProfileMessages.rawValue) ?? "Clear"
+        case .settings: return defaults.string(forKey: Key.screenProfileSettings.rawValue) ?? "Off"
+        default: return preset
+        }
+    }
+
+    @objc public func setProfileName(_ name: String, for screen: GlassScreen) {
+        switch screen {
+        case .feed: defaults.set(name, forKey: Key.screenProfileFeed.rawValue)
+        case .profile: defaults.set(name, forKey: Key.screenProfileProfile.rawValue)
+        case .messages: defaults.set(name, forKey: Key.screenProfileMessages.rawValue)
+        case .settings: defaults.set(name, forKey: Key.screenProfileSettings.rawValue)
+        default: break
+        }
+        notifyChange()
+    }
+
     // MARK: - Presets
 
     @objc public func applyPreset(_ name: String) {
@@ -213,50 +307,121 @@ import Foundation
         switch name {
         case "Clean":
             style = "Clear"; intensity = 0.40; opacity = 0.70
-            blurEnabled = true; vibrancyEnabled = false; noiseEnabled = false; lightBloomEnabled = false
+            blurEnabled = true; vibrancyEnabled = false; noiseEnabled = false
+            lightBloomEnabled = false; edgeHighlightEnabled = true
             cornerRadius = 20; saturation = 0.40; dimming = 0.15
+            lightIntensity = 0.45; darkIntensity = 0.35; lightweightMode = true
         case "Heavy":
             style = "Frosted"; intensity = 0.90; opacity = 0.95
-            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = true; lightBloomEnabled = true
+            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = true
+            lightBloomEnabled = true; edgeHighlightEnabled = true
             cornerRadius = 28; saturation = 0.80; dimming = 0.45
+            lightIntensity = 0.70; darkIntensity = 0.55; lightweightMode = false
         case "Performance":
             style = "Clear"; intensity = 0.35; opacity = 0.60
-            blurEnabled = false; vibrancyEnabled = false; noiseEnabled = false; lightBloomEnabled = false
+            blurEnabled = false; vibrancyEnabled = false; noiseEnabled = false
+            lightBloomEnabled = false; edgeHighlightEnabled = false
             cornerRadius = 18; saturation = 0.30; dimming = 0.10
-        default: // Default
+            lightIntensity = 0.30; darkIntensity = 0.25; lightweightMode = true
+        case "Off":
+            isEnabled = false
+        default:
             style = "Frosted"; intensity = 0.72; opacity = 0.85
-            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = false; lightBloomEnabled = true
+            blurEnabled = true; vibrancyEnabled = true; noiseEnabled = false
+            lightBloomEnabled = true; edgeHighlightEnabled = true
             cornerRadius = 24; saturation = 0.65; dimming = 0.30
+            lightIntensity = 0.55; darkIntensity = 0.45; lightweightMode = false
+            isEnabled = true
         }
         notifyChange()
     }
 
     @objc public func resetToDefaults() {
-        let domain = defaults.dictionaryRepresentation().keys
-        domain.forEach { defaults.removeObject(forKey: $0) }
+        let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("GG_") }
+        keys.forEach { defaults.removeObject(forKey: $0) }
         registerDefaults()
         notifyChange()
     }
 
-    private func notifyChange() {
-        NotificationCenter.default.post(name: .glassPreferencesDidChange, object: nil)
-        if debugLogging {
-            print("[GlossyGlass] Preferences updated")
+    @objc public func resetStylesOnly() {
+        style = "Frosted"
+        intensity = 0.72
+        opacity = 0.85
+        blurEnabled = true
+        vibrancyEnabled = true
+        noiseEnabled = false
+        lightBloomEnabled = true
+        edgeHighlightEnabled = true
+        cornerRadius = 24
+        saturation = 0.65
+        dimming = 0.30
+        lightIntensity = 0.55
+        darkIntensity = 0.45
+        notifyChange()
+    }
+
+    // MARK: - Export / Import (JSON)
+
+    @objc public func exportSettings() -> [String: Any] {
+        var dict: [String: Any] = [:]
+        for (key, value) in defaults.dictionaryRepresentation() {
+            if key.hasPrefix("GG_") {
+                dict[key] = value
+            }
         }
+        return dict
+    }
+
+    @objc public func exportSettingsJSON() -> String? {
+        let dict = exportSettings()
+        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    @objc public func importSettings(_ dict: [String: Any]) {
+        for (key, value) in dict where key.hasPrefix("GG_") {
+            defaults.set(value, forKey: key)
+        }
+        migrateIfNeeded()
+        notifyChange()
+    }
+
+    @objc public func importSettingsJSON(_ json: String) -> Bool {
+        guard let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        importSettings(dict)
+        return true
+    }
+
+    // MARK: - Notify (debounced for sliders)
+
+    private func notifyChange() {
+        notifyWorkItem?.cancel()
+        NotificationCenter.default.post(name: .glassPreferencesDidChange, object: nil)
+        if debugLogging { print("[GlossyGlass] Preferences updated") }
+    }
+
+    private func notifyChangeDebounced() {
+        notifyWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            NotificationCenter.default.post(name: .glassPreferencesDidChange, object: nil)
+            if self?.debugLogging == true { print("[GlossyGlass] Preferences updated (debounced)") }
+        }
+        notifyWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
     }
 
     @objc public func log(_ message: String) {
         guard debugLogging else { return }
         print("[GlossyGlass] \(message)")
     }
+
+    private func clamp01(_ v: CGFloat) -> CGFloat { max(0, min(1, v)) }
 }
 
 public extension Notification.Name {
     static let glassPreferencesDidChange = Notification.Name("GlassPreferencesDidChange")
 }
-
-
-// MARK: - UIColor hex helpers
 
 private extension UIColor {
     convenience init?(ggHex: String) {
@@ -276,8 +441,7 @@ private extension UIColor {
             g = CGFloat((rgb & 0x00FF0000) >> 16) / 255
             b = CGFloat((rgb & 0x0000FF00) >> 8) / 255
             a = CGFloat(rgb & 0x000000FF) / 255
-        default:
-            return nil
+        default: return nil
         }
         self.init(red: r, green: g, blue: b, alpha: a)
     }

@@ -131,20 +131,30 @@ private class GlassSettingsViewController: UIViewController {
             self?.prefs.glossIntensity = CGFloat(v)
         })
         appearanceCard.addArrangedSubview(makeDivider())
-        appearanceCard.addArrangedSubview(makeSliderRow(title: "Opacity", subtitle: "Glass layer opacity", value: 0.85) { _ in })
+        appearanceCard.addArrangedSubview(makeSliderRow(title: "Opacity", subtitle: "Glass layer opacity", value: Float(prefs.opacity)) { [weak self] v in
+            self?.prefs.opacity = CGFloat(v)
+        })
         stack.addArrangedSubview(appearanceCard)
 
         // MARK: Effects Section
         stack.addArrangedSubview(makeSectionHeader(title: "Effects", icon: "water.waves"))
 
         let effectsCard = makeCard()
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Blur", subtitle: "Enable background blur", isOn: true) { _ in })
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Blur", subtitle: "Enable background blur", isOn: prefs.blurEnabled) { [weak self] on in
+            self?.prefs.blurEnabled = on
+        })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Vibrancy", subtitle: "Boost colors underneath glass", isOn: true) { _ in })
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Vibrancy", subtitle: "Boost colors underneath glass", isOn: prefs.vibrancyEnabled) { [weak self] on in
+            self?.prefs.vibrancyEnabled = on
+        })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Noise", subtitle: "Add subtle texture to glass", isOn: false) { _ in })
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Noise", subtitle: "Add subtle texture to glass", isOn: prefs.noiseEnabled) { [weak self] on in
+            self?.prefs.noiseEnabled = on
+        })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Light Bloom", subtitle: "Soft glow around bright areas", isOn: true) { _ in })
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Light Bloom", subtitle: "Soft glow around bright areas", isOn: prefs.lightBloomEnabled) { [weak self] on in
+            self?.prefs.lightBloomEnabled = on
+        })
         stack.addArrangedSubview(effectsCard)
 
         // MARK: Advanced Section
@@ -153,10 +163,31 @@ private class GlassSettingsViewController: UIViewController {
         let advancedCard = makeCard()
         advancedCard.addArrangedSubview(makeDropdownRow(title: "Corner Radius", subtitle: "Roundness of glass corners", value: "Large"))
         advancedCard.addArrangedSubview(makeDivider())
-        advancedCard.addArrangedSubview(makeSliderRow(title: "Saturation", subtitle: "Color saturation of glass", value: 0.65) { _ in })
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Saturation", subtitle: "Color saturation of glass", value: Float(prefs.saturation)) { [weak self] v in
+            self?.prefs.saturation = CGFloat(v)
+        })
         advancedCard.addArrangedSubview(makeDivider())
-        advancedCard.addArrangedSubview(makeSliderRow(title: "Dimming", subtitle: "Darken content behind glass", value: 0.30) { _ in })
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Dimming", subtitle: "Darken content behind glass", value: Float(prefs.dimming)) { [weak self] v in
+            self?.prefs.dimming = CGFloat(v)
+        })
         stack.addArrangedSubview(advancedCard)
+
+
+        // Extra v3 controls
+        let extraCard = makeCard()
+        extraCard.addArrangedSubview(makeSwitchRow(title: "Edge Highlight", subtitle: "Refraction-style rim", isOn: prefs.edgeHighlightEnabled) { [weak self] on in
+            self?.prefs.edgeHighlightEnabled = on
+        })
+        extraCard.addArrangedSubview(makeDivider())
+        extraCard.addArrangedSubview(makeSwitchRow(title: "Haptics", subtitle: "Touch feedback", isOn: prefs.hapticsEnabled) { [weak self] on in
+            self?.prefs.hapticsEnabled = on
+        })
+        extraCard.addArrangedSubview(makeDivider())
+        extraCard.addArrangedSubview(makeSwitchRow(title: "Safe Mode", subtitle: "Disable injection if unstable", isOn: prefs.safeMode) { [weak self] on in
+            self?.prefs.safeMode = on
+            if on { GlossyGlassAPI.shared.enterSafeMode() } else { GlossyGlassAPI.shared.exitSafeMode() }
+        })
+        stack.addArrangedSubview(extraCard)
 
         // MARK: Master + Elements
         let masterCard = makeCard()
@@ -190,9 +221,15 @@ private class GlassSettingsViewController: UIViewController {
         })
         stack.addArrangedSubview(masterCard)
 
+        let diagBtn = UIButton(type: .system)
+        diagBtn.setTitle("Open Diagnostics", for: .normal)
+        diagBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        diagBtn.addAction(UIAction { _ in GlassDiagnostics.shared.present(from: self) }, for: .touchUpInside)
+        stack.addArrangedSubview(diagBtn)
+
         // Footer / Branding
         let footer = UILabel()
-        footer.text = "GlossyGlass  ·  Made by Killswitch  ·  v2.1"
+        footer.text = "GlossyGlass  ·  Made by Killswitch  ·  v3"
         footer.font = .systemFont(ofSize: 12, weight: .medium)
         footer.textColor = .tertiaryLabel
         footer.textAlignment = .center

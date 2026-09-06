@@ -1,80 +1,61 @@
 import UIKit
 
-/// Public API so other tweaks can control GlossyGlass
+/// Versioned public API for other tweaks
 @objc public class GlossyGlassAPI: NSObject {
 
     @objc public static let shared = GlossyGlassAPI()
-
-    private override init() { super.init() }
-
-    // MARK: - Enable / Disable
+    @objc public static let apiVersion: Int = 3
 
     @objc public func setEnabled(_ enabled: Bool) {
         GlassPreferences.shared.isEnabled = enabled
     }
 
-    @objc public var isEnabled: Bool {
+    @objc public func isEnabled() -> Bool {
         GlassPreferences.shared.isEnabled
     }
-
-    // MARK: - Intensity
-
-    @objc public func setLightIntensity(_ value: CGFloat) {
-        GlassPreferences.shared.lightIntensity = value
-    }
-
-    @objc public func setDarkIntensity(_ value: CGFloat) {
-        GlassPreferences.shared.darkIntensity = value
-    }
-
-    // MARK: - Mode
-
-    /// 0 = Frosted, 1 = Clear, 2 = Tinted
-    @objc public func setGlassMode(_ mode: Int) {
-        GlassPreferences.shared.glassMode = mode
-    }
-
-    // MARK: - Presets
 
     @objc public func applyPreset(_ name: String) {
         GlassPreferences.shared.applyPreset(name)
     }
 
-    // MARK: - Elements
-
-    @objc public func setStyleNavigationBar(_ on: Bool) {
-        GlassPreferences.shared.styleNavigationBar = on
+    @objc public func applyPresetEnum(_ preset: GlassPreset) {
+        GlassPreferences.shared.applyPreset(preset.rawString)
     }
-
-    @objc public func setStyleTabBar(_ on: Bool) {
-        GlassPreferences.shared.styleTabBar = on
-    }
-
-    @objc public func setStyleButtons(_ on: Bool) {
-        GlassPreferences.shared.styleButtons = on
-    }
-
-    @objc public func setShowGlassButton(_ on: Bool) {
-        GlassPreferences.shared.showGlassButton = on
-    }
-
-    // MARK: - Settings Panel
 
     @objc public func presentSettings() {
         GlassSettingsPresenter.present()
     }
 
-    // MARK: - Export / Import
-
-    @objc public func exportSettings() -> [String: Any] {
-        GlassPreferences.shared.exportSettings()
+    @objc public func presentDiagnostics() {
+        GlassDiagnostics.shared.present()
     }
 
-    @objc public func importSettings(_ dict: [String: Any]) {
-        GlassPreferences.shared.importSettings(dict)
+    @objc public func exportSettingsJSON() -> String? {
+        GlassPreferences.shared.exportSettingsJSON()
     }
 
-    // MARK: - Version
+    @objc public func importSettingsJSON(_ json: String) -> Bool {
+        GlassPreferences.shared.importSettingsJSON(json)
+    }
 
-    @objc public var version: String { "2.0.0" }
+    @objc public func forceRedetect() {
+        GlassInjector.forceRedetect()
+    }
+
+    @objc public func enterSafeMode() {
+        GlassPreferences.shared.safeMode = true
+        GlassPreferences.shared.isEnabled = false
+        GlassInjector.forceRedetect()
+    }
+
+    @objc public func exitSafeMode() {
+        GlassPreferences.shared.safeMode = false
+        GlassPreferences.shared.crashCount = 0
+        GlassPreferences.shared.isEnabled = true
+        GlassInjector.forceRedetect()
+    }
+
+    @objc public func configuration() -> GlassConfiguration {
+        GlassConfiguration.fromPreferences()
+    }
 }
