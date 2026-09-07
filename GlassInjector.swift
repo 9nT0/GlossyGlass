@@ -1,10 +1,9 @@
 import UIKit
 
 /// v3.1 hotfix injector
-/// - Multiple strategies (not only UIStackView)
-/// - Soft attempt budget (never permanently gives up)
-/// - Host re-validation
-/// - Global long-press (3s) to open settings as backup access
+/// - Multi-strategy injection
+/// - Soft attempts
+/// - 3s long-press ONLY on profile controls opens settings
 @objc public class GlassInjector: NSObject {
 
     private static var observer: NSObjectProtocol?
@@ -13,7 +12,7 @@ import UIKit
     private static weak var attachedButton: GlassSettingsButton?
     private static weak var attachedHost: UIView?
     private static var revalidateTimer: Timer?
-    private static var longPressInstalled = false
+    private static var profilePressInstalled = 0
 
     @objc public static func start() {
         DispatchQueue.main.async {
@@ -26,18 +25,17 @@ import UIKit
                     object: nil,
                     queue: .main
                 ) { _ in
-                    injectionAttempts = max(0, injectionAttempts - 5) // recover attempts
+                    injectionAttempts = max(0, injectionAttempts - 5)
                     attemptInjection()
-                    installGlobalLongPressIfNeeded()
+                    installProfileLongPress()
                 }
 
                 revalidateTimer?.invalidate()
                 revalidateTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                     revalidateAttachment()
-                    installGlobalLongPressIfNeeded()
+                    installProfileLongPress()
                 }
 
-                // Device-based first launch preset
                 GlassDeviceProfiler.applyIfNeeded()
             }
 
@@ -45,13 +43,13 @@ import UIKit
             for delay in delays {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     attemptInjection()
-                    installGlobalLongPressIfNeeded()
+                    installProfileLongPress()
                 }
             }
 
             attemptInjection()
-            installGlobalLongPressIfNeeded()
-            GlassPreferences.shared.log("GlassInjector started (v3.1-hotfix)")
+            installProfileLongPress()
+            GlassPreferences.shared.log("GlassInjector started (v3.1-hotfix profile-press)")
         }
     }
 
@@ -61,31 +59,58 @@ import UIKit
         attachedHost = nil
         removeExistingButtons()
         attemptInjection()
-        installGlobalLongPressIfNeeded()
+        installProfileLongPress()
     }
 
-    // MARK: - Global long-press (3s) opens settings — never a dead end
+    // MARK: - 3s long-press ONLY on profile-related controls
 
-    private static func installGlobalLongPressIfNeeded() {
-        guard !longPressInstalled else {
-            // Re-check windows for new key window
-            attachLongPressToKeyWindows()
-            return
-        }
-        longPressInstalled = true
-        attachLongPressToKeyWindows()
-    }
-
-    private static func attachLongPressToKeyWindows() {
+    private static func installProfileLongPress() {
         for scene in UIApplication.shared.connectedScenes {
             guard let ws = scene as? UIWindowScene else { continue }
             for window in ws.windows where !window.isHidden {
-                let exists = window.gestureRecognizers?.contains { $0 is GlassOpenSettingsLongPress } ?? false
-                if !exists {
-                    let g = GlassOpenSettingsLongPress()
-                    window.addGestureRecognizer(g)
-                }
+                attachProfilePress(in: window, depth: 0)
             }
+        }
+    }
+
+    private static func attachProfilePress(in view: UIView, depth: Int) {
+        guard depth < 18 else { return }
+
+        let name = NSStringFromClass(type(of: view))
+        let lower = name.lowercased()
+
+        // Only profile-related targets (tab profile item, profile buttons, avatar chrome)
+        let isProfileTarget =
+            lower.contains("profile") ||
+            lower.contains("useravatar") ||
+            lower.contains("igprofile") ||
+            lower.contains("tabbar") && (view is UIControl || view is UIButton) ||
+            (view is UITabBar)
+
+        // Also: the Glass settings button itself can open panel on 3s hold
+        let isGlassBtn = view is GlassSettingsButton
+
+        if (isProfileTarget || isGlassBtn) && (view is UIControl || view is UIButton || view is UITabBar || isGlassBtn) {
+            let exists = view.gestureRecognizers?.contains { $0 is GlassOpenSettingsLongPress } ?? false
+            if !exists {
+                let g = GlassOpenSettingsLongPress()
+                // Don't block normal taps
+                g.cancelsTouchesInView = false
+                g.delegate = GlassGestureDelegate.shared
+                view.addGestureRecognizer(g)
+                profilePressInstalled += 1
+            }
+        }
+
+        // Tab bar items: walk item views carefully
+        if let tab = view as? UITabBar {
+            for sub in tab.subviews {
+                attachProfilePress(in: sub, depth: depth + 1)
+            }
+        }
+
+        for sub in view.subviews {
+            attachProfilePress(in: sub, depth: depth + 1)
         }
     }
 
@@ -104,7 +129,6 @@ import UIKit
         if attachedButton == nil || attachedButton?.superview == nil {
             attachedButton = nil
             attachedHost = nil
-            // Soft reset — never permanent give up
             if injectionAttempts > 8 { injectionAttempts = 4 }
             attemptInjection()
         }
@@ -132,7 +156,6 @@ import UIKit
         if let btn = attachedButton, btn.superview != nil { return }
 
         injectionAttempts += 1
-        // Soft cap: slow down but never stop forever
         if injectionAttempts > 30 && injectionAttempts % 5 != 0 { return }
 
         var best: (view: UIView, score: Int, kind: String)?
@@ -170,7 +193,6 @@ import UIKit
             btn.heightAnchor.constraint(equalToConstant: h).isActive = true
             stack.addArrangedSubview(btn)
         } else {
-            // Fallback: overlay on container's top-trailing area
             let host = winner.view
             host.addSubview(btn)
             NSLayoutConstraint.activate([
@@ -180,6 +202,11 @@ import UIKit
                 btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 56)
             ])
         }
+
+        // 3s hold on the Glass button also opens settings (in addition to tap)
+        let hold = GlassOpenSettingsLongPress()
+        hold.cancelsTouchesInView = false
+        btn.addGestureRecognizer(hold)
 
         attachedButton = btn
         attachedHost = winner.view
@@ -193,12 +220,9 @@ import UIKit
         prefs.log("Injected (\(winner.kind), score \(winner.score))")
     }
 
-    // MARK: - Multi-strategy scan
-
     private static func scan(_ view: UIView, depth: Int, best: inout (view: UIView, score: Int, kind: String)?, count: inout Int) {
         guard depth < 20 else { return }
 
-        // Strategy A: horizontal UIStackView with buttons
         if let stack = view as? UIStackView, stack.axis == .horizontal {
             let s = scoreStack(stack, container: view.superview)
             if s >= 30 {
@@ -209,14 +233,12 @@ import UIKit
             }
         }
 
-        // Strategy B: container with several UIButton children roughly in a row
         let buttons = view.subviews.filter { $0 is UIButton || $0 is UIControl }
         if buttons.count >= 2 && buttons.count <= 6 {
             let s = scoreButtonRow(buttons, in: view)
             if s >= 30 {
                 count += 1
                 if s >= 40, best == nil || s > best!.score {
-                    // Prefer embedding in a stack if we can find one; else use container
                     if let stack = view as? UIStackView {
                         best = (stack, s, "ButtonRow-Stack")
                     } else if let stack = view.subviews.compactMap({ $0 as? UIStackView }).first(where: { $0.axis == .horizontal }) {
@@ -228,9 +250,8 @@ import UIKit
             }
         }
 
-        // Strategy C: class-name hints
         let name = NSStringFromClass(type(of: view))
-        let hints = ["Profile", "Action", "ButtonBar", "Header", "Toolbar", "EditProfile", "NavBar"]
+        let hints = ["Profile", "Action", "ButtonBar", "Header", "Toolbar", "EditProfile"]
         if hints.contains(where: { name.contains($0) }) {
             if let stack = firstHorizontalStack(in: view) {
                 let s = scoreStack(stack, container: view) + 35
@@ -273,12 +294,9 @@ import UIKit
     }
 
     private static func scoreButtonRow(_ buttons: [UIView], in container: UIView) -> Int {
-        // Check horizontal alignment (similar midY)
         let mids = buttons.map { $0.frame.midY }
         guard let first = mids.first else { return 0 }
-        let aligned = mids.allSatisfy { abs($0 - first) < 16 }
-        guard aligned else { return 10 }
-
+        guard mids.allSatisfy({ abs($0 - first) < 16 }) else { return 10 }
         var score = 30 + buttons.count * 5
         let cname = NSStringFromClass(type(of: container))
         if cname.contains("Profile") || cname.contains("Action") { score += 25 }
@@ -320,7 +338,7 @@ import UIKit
     }
 }
 
-// MARK: - 3 second hold anywhere (esp. profile) opens settings
+// MARK: - Profile-only 3s hold → settings
 
 private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
     init() {
@@ -334,10 +352,16 @@ private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
     @objc private func handle(_ g: UILongPressGestureRecognizer) {
         guard g.state == .began else { return }
         if GlassPreferences.shared.hapticsEnabled {
-            let gen = UIImpactFeedbackGenerator(style: .medium)
-            gen.impactOccurred()
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
         GlassSettingsPresenter.present()
+    }
+}
+
+private class GlassGestureDelegate: NSObject, UIGestureRecognizerDelegate {
+    static let shared = GlassGestureDelegate()
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
     }
 }
 
