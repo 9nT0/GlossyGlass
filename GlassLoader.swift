@@ -48,6 +48,7 @@ import UIKit
             NSLog("[GlossyGlass] Safe mode — injection skipped")
             return
         }
+        GlassDeviceProfiler.applyIfNeeded()
         GlassInjector.start()
     }
 }

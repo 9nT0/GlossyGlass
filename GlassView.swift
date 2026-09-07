@@ -186,6 +186,7 @@ import UIKit
         let effectiveIntensity = max(0, min(1,
             (isDark ? prefs.darkIntensity : prefs.lightIntensity) * prefs.intensity
         ))
+        let light = prefs.lightweightMode
 
         // MARK: Style → blur material
         let blurStyle: UIBlurEffect.Style
@@ -225,12 +226,16 @@ import UIKit
         }
 
         // MARK: Dimming (darkens content behind glass slightly)
-        let dimAlpha = prefs.dimming * masterOpacity * (isDark ? 0.55 : 0.35)
+        var dimFactor = prefs.dimming
+        if GlassLiveState.shared.focusMode { dimFactor = min(1, dimFactor + 0.18) }
+        let dimAlpha = dimFactor * masterOpacity * (isDark ? 0.55 : 0.35)
         dimmingLayer.backgroundColor = UIColor.black.withAlphaComponent(dimAlpha).cgColor
 
         // MARK: Tint
         let tint: UIColor
-        if let manual = customTint {
+        if let live = GlassLiveState.shared.liveTint {
+            tint = live
+        } else if let manual = customTint {
             tint = manual
         } else if let prefTint = prefs.customTint {
             tint = prefTint
@@ -247,7 +252,7 @@ import UIKit
         ).cgColor
 
         // MARK: Noise (subtle grain)
-        if prefs.noiseEnabled && !prefs.lightweightMode {
+        if prefs.noiseEnabled && !light {
             if noiseImage == nil {
                 noiseImage = Self.makeNoiseImage(size: CGSize(width: 64, height: 64))
             }
@@ -272,7 +277,7 @@ import UIKit
         glossLayer.locations = [0.0, 0.28, 1.0]
 
         // MARK: Light Bloom (soft top glow)
-        if prefs.lightBloomEnabled && !prefs.lightweightMode {
+        if prefs.lightBloomEnabled && !light {
             let bloomAlpha = 0.10 * effectiveIntensity * masterOpacity
             bloomLayer.colors = [
                 UIColor.white.withAlphaComponent(bloomAlpha).cgColor,

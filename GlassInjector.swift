@@ -1,20 +1,19 @@
 import UIKit
 
-/// GlossyGlass v3.1 injector
-/// - Scored candidates
-/// - Single host lock
-/// - Re-validates attachment (reattach if host destroyed)
-/// - Safe mode
-/// - Hide button removes existing
+/// v3.1 hotfix injector
+/// - Multiple strategies (not only UIStackView)
+/// - Soft attempt budget (never permanently gives up)
+/// - Host re-validation
+/// - Global long-press (3s) to open settings as backup access
 @objc public class GlassInjector: NSObject {
 
     private static var observer: NSObjectProtocol?
     private static var hasStarted = false
     private static var injectionAttempts = 0
-    private static let maxAttempts = 20
     private static weak var attachedButton: GlassSettingsButton?
     private static weak var attachedHost: UIView?
     private static var revalidateTimer: Timer?
+    private static var longPressInstalled = false
 
     @objc public static func start() {
         DispatchQueue.main.async {
@@ -27,26 +26,32 @@ import UIKit
                     object: nil,
                     queue: .main
                 ) { _ in
-                    injectionAttempts = 0
+                    injectionAttempts = max(0, injectionAttempts - 5) // recover attempts
                     attemptInjection()
+                    installGlobalLongPressIfNeeded()
                 }
 
-                // Periodic re-validation (host may have been rebuilt)
                 revalidateTimer?.invalidate()
-                revalidateTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+                revalidateTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                     revalidateAttachment()
+                    installGlobalLongPressIfNeeded()
                 }
+
+                // Device-based first launch preset
+                GlassDeviceProfiler.applyIfNeeded()
             }
 
-            let delays: [TimeInterval] = [0.4, 1.0, 2.0, 3.5, 5.5, 8.0, 12.0, 18.0]
+            let delays: [TimeInterval] = [0.3, 0.7, 1.2, 2.0, 3.0, 4.5, 6.5, 9.0, 12.0, 16.0, 22.0, 30.0]
             for delay in delays {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     attemptInjection()
+                    installGlobalLongPressIfNeeded()
                 }
             }
 
             attemptInjection()
-            GlassPreferences.shared.log("GlassInjector started (v3.1)")
+            installGlobalLongPressIfNeeded()
+            GlassPreferences.shared.log("GlassInjector started (v3.1-hotfix)")
         }
     }
 
@@ -56,11 +61,37 @@ import UIKit
         attachedHost = nil
         removeExistingButtons()
         attemptInjection()
+        installGlobalLongPressIfNeeded()
+    }
+
+    // MARK: - Global long-press (3s) opens settings — never a dead end
+
+    private static func installGlobalLongPressIfNeeded() {
+        guard !longPressInstalled else {
+            // Re-check windows for new key window
+            attachLongPressToKeyWindows()
+            return
+        }
+        longPressInstalled = true
+        attachLongPressToKeyWindows()
+    }
+
+    private static func attachLongPressToKeyWindows() {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let ws = scene as? UIWindowScene else { continue }
+            for window in ws.windows where !window.isHidden {
+                let exists = window.gestureRecognizers?.contains { $0 is GlassOpenSettingsLongPress } ?? false
+                if !exists {
+                    let g = GlassOpenSettingsLongPress()
+                    window.addGestureRecognizer(g)
+                }
+            }
+        }
     }
 
     private static func revalidateAttachment() {
         let prefs = GlassPreferences.shared
-        if prefs.safeMode || prefs.hideGlassButton || !prefs.isEnabled {
+        if prefs.safeMode || prefs.hideGlassButton {
             if attachedButton != nil {
                 removeExistingButtons()
                 attachedButton = nil
@@ -68,11 +99,13 @@ import UIKit
             }
             return
         }
-        // If we thought we were attached but button is gone → re-inject
+        guard prefs.isEnabled else { return }
+
         if attachedButton == nil || attachedButton?.superview == nil {
             attachedButton = nil
             attachedHost = nil
-            injectionAttempts = 0
+            // Soft reset — never permanent give up
+            if injectionAttempts > 8 { injectionAttempts = 4 }
             attemptInjection()
         }
     }
@@ -84,10 +117,9 @@ import UIKit
             removeExistingButtons()
             attachedButton = nil
             attachedHost = nil
-            GlassDiagnostics.shared.recordInjection(score: 0, host: "none", candidates: 0, attached: false, note: "Safe mode active")
+            GlassDiagnostics.shared.recordInjection(score: 0, host: "none", candidates: 0, attached: false, note: "Safe mode")
             return
         }
-
         guard prefs.isEnabled else { return }
 
         if prefs.hideGlassButton {
@@ -97,30 +129,29 @@ import UIKit
             return
         }
 
-        if let btn = attachedButton, btn.superview != nil {
-            return
-        }
+        if let btn = attachedButton, btn.superview != nil { return }
 
         injectionAttempts += 1
-        if injectionAttempts > maxAttempts { return }
+        // Soft cap: slow down but never stop forever
+        if injectionAttempts > 30 && injectionAttempts % 5 != 0 { return }
 
-        var best: (stack: UIStackView, score: Int)?
+        var best: (view: UIView, score: Int, kind: String)?
         var candidateCount = 0
 
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows where !window.isHidden {
-                collectCandidates(in: window, depth: 0, best: &best, count: &candidateCount)
+                scan(window, depth: 0, best: &best, count: &candidateCount)
             }
         }
 
-        guard let winner = best, winner.score >= 40 else {
+        guard let winner = best, winner.score >= 35 else {
             GlassDiagnostics.shared.recordInjection(
                 score: best?.score ?? 0,
-                host: "none",
+                host: best?.kind ?? "none",
                 candidates: candidateCount,
                 attached: false,
-                note: "No suitable host"
+                note: "No host yet (attempt \(injectionAttempts))"
             )
             return
         }
@@ -129,98 +160,136 @@ import UIKit
 
         let btn = GlassSettingsButton()
         btn.translatesAutoresizingMaskIntoConstraints = false
-        // Match neighbor height when possible
-        let neighborHeights = winner.stack.arrangedSubviews.compactMap { v -> CGFloat? in
-            let h = v.bounds.height
-            return h > 20 && h < 50 ? h : nil
+
+        if let stack = winner.view as? UIStackView {
+            let heights = stack.arrangedSubviews.compactMap { v -> CGFloat? in
+                let h = v.bounds.height
+                return (h > 18 && h < 56) ? h : nil
+            }
+            let h: CGFloat = heights.isEmpty ? 32 : heights.reduce(0, +) / CGFloat(heights.count)
+            btn.heightAnchor.constraint(equalToConstant: h).isActive = true
+            stack.addArrangedSubview(btn)
+        } else {
+            // Fallback: overlay on container's top-trailing area
+            let host = winner.view
+            host.addSubview(btn)
+            NSLayoutConstraint.activate([
+                btn.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -12),
+                btn.topAnchor.constraint(equalTo: host.topAnchor, constant: 8),
+                btn.heightAnchor.constraint(equalToConstant: 32),
+                btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 56)
+            ])
         }
-        let targetH: CGFloat = neighborHeights.isEmpty ? 32 : (neighborHeights.reduce(0, +) / CGFloat(neighborHeights.count))
-        btn.heightAnchor.constraint(equalToConstant: targetH).isActive = true
-        winner.stack.addArrangedSubview(btn)
 
         attachedButton = btn
-        attachedHost = winner.stack
-        let hostName = NSStringFromClass(type(of: winner.stack))
+        attachedHost = winner.view
         GlassDiagnostics.shared.recordInjection(
             score: winner.score,
-            host: hostName,
+            host: winner.kind,
             candidates: candidateCount,
             attached: true,
-            note: "Injected successfully"
+            note: "Injected via \(winner.kind)"
         )
-        prefs.log("Injected Glass button (score \(winner.score), h=\(targetH))")
+        prefs.log("Injected (\(winner.kind), score \(winner.score))")
     }
 
-    private static func collectCandidates(in view: UIView, depth: Int, best: inout (stack: UIStackView, score: Int)?, count: inout Int) {
-        guard depth < 18 else { return }
+    // MARK: - Multi-strategy scan
 
-        if let stack = view as? UIStackView,
-           stack.axis == .horizontal,
-           stack.arrangedSubviews.count >= 2,
-           stack.arrangedSubviews.count <= 6 {
-            let score = scoreStack(stack, container: view.superview)
-            if score >= 30 {
+    private static func scan(_ view: UIView, depth: Int, best: inout (view: UIView, score: Int, kind: String)?, count: inout Int) {
+        guard depth < 20 else { return }
+
+        // Strategy A: horizontal UIStackView with buttons
+        if let stack = view as? UIStackView, stack.axis == .horizontal {
+            let s = scoreStack(stack, container: view.superview)
+            if s >= 30 {
                 count += 1
-                if score >= 40, best == nil || score > best!.score {
-                    best = (stack, score)
+                if s >= 35, best == nil || s > best!.score {
+                    best = (stack, s, "UIStackView")
                 }
             }
         }
 
-        let className = NSStringFromClass(type(of: view))
-        if className.contains("Profile") || className.contains("Action") || className.contains("ButtonBar") || className.contains("Header") {
-            if let stack = firstHorizontalStack(in: view) {
-                let score = scoreStack(stack, container: view) + 30
+        // Strategy B: container with several UIButton children roughly in a row
+        let buttons = view.subviews.filter { $0 is UIButton || $0 is UIControl }
+        if buttons.count >= 2 && buttons.count <= 6 {
+            let s = scoreButtonRow(buttons, in: view)
+            if s >= 30 {
                 count += 1
-                if score >= 40, best == nil || score > best!.score {
-                    best = (stack, score)
+                if s >= 40, best == nil || s > best!.score {
+                    // Prefer embedding in a stack if we can find one; else use container
+                    if let stack = view as? UIStackView {
+                        best = (stack, s, "ButtonRow-Stack")
+                    } else if let stack = view.subviews.compactMap({ $0 as? UIStackView }).first(where: { $0.axis == .horizontal }) {
+                        best = (stack, s + 5, "ButtonRow-InnerStack")
+                    } else {
+                        best = (view, s, "ButtonRow-Container")
+                    }
+                }
+            }
+        }
+
+        // Strategy C: class-name hints
+        let name = NSStringFromClass(type(of: view))
+        let hints = ["Profile", "Action", "ButtonBar", "Header", "Toolbar", "EditProfile", "NavBar"]
+        if hints.contains(where: { name.contains($0) }) {
+            if let stack = firstHorizontalStack(in: view) {
+                let s = scoreStack(stack, container: view) + 35
+                count += 1
+                if s >= 35, best == nil || s > best!.score {
+                    best = (stack, s, "Hint-\(name)")
+                }
+            } else {
+                let s = 38
+                count += 1
+                if best == nil || s > best!.score {
+                    best = (view, s, "HintContainer-\(name)")
                 }
             }
         }
 
         for sub in view.subviews {
-            collectCandidates(in: sub, depth: depth + 1, best: &best, count: &count)
+            scan(sub, depth: depth + 1, best: &best, count: &count)
         }
     }
 
     private static func scoreStack(_ stack: UIStackView, container: UIView?) -> Int {
-        if stack.arrangedSubviews.contains(where: { $0 is GlassSettingsButton }) {
-            return -100
+        if stack.arrangedSubviews.contains(where: { $0 is GlassSettingsButton }) { return -100 }
+        let controls = stack.arrangedSubviews.filter {
+            $0 is UIButton || $0 is UIControl ||
+            NSStringFromClass(type(of: $0)).lowercased().contains("button")
         }
-
-        let controls = stack.arrangedSubviews.filter { v in
-            v is UIButton || v is UIControl ||
-            NSStringFromClass(type(of: v)).lowercased().contains("button")
-        }
-        let count = controls.count
-        guard count >= 2, count <= 5 else { return 0 }
-
-        var score = 20
-        score += min(count, 4) * 8
-        if stack.arrangedSubviews.count <= 5 { score += 10 }
-        if stack.spacing > 0 && stack.spacing < 24 { score += 5 }
-
+        guard controls.count >= 2, controls.count <= 5 else { return 0 }
+        var score = 25 + min(controls.count, 4) * 8
+        if stack.arrangedSubviews.count <= 5 { score += 8 }
         let heights = controls.map { $0.bounds.height }.filter { $0 > 0 }
         if heights.count >= 2 {
             let avg = heights.reduce(0, +) / CGFloat(heights.count)
-            if heights.allSatisfy({ abs($0 - avg) < 10 }) { score += 15 }
+            if heights.allSatisfy({ abs($0 - avg) < 12 }) { score += 12 }
         }
+        let cname = container.map { NSStringFromClass(type(of: $0)) } ?? ""
+        if cname.contains("Navigation") || cname.contains("TabBar") { score -= 50 }
+        if cname.contains("Profile") || cname.contains("Action") { score += 25 }
+        return score
+    }
 
-        let containerName = container.map { NSStringFromClass(type(of: $0)) } ?? ""
-        if containerName.contains("Navigation") || containerName.contains("TabBar") || containerName.contains("Toolbar") {
-            score -= 45
-        }
-        if containerName.contains("Profile") || containerName.contains("Action") {
-            score += 20
-        }
+    private static func scoreButtonRow(_ buttons: [UIView], in container: UIView) -> Int {
+        // Check horizontal alignment (similar midY)
+        let mids = buttons.map { $0.frame.midY }
+        guard let first = mids.first else { return 0 }
+        let aligned = mids.allSatisfy { abs($0 - first) < 16 }
+        guard aligned else { return 10 }
 
+        var score = 30 + buttons.count * 5
+        let cname = NSStringFromClass(type(of: container))
+        if cname.contains("Profile") || cname.contains("Action") { score += 25 }
+        if cname.contains("Navigation") || cname.contains("TabBar") { score -= 40 }
         return score
     }
 
     private static func firstHorizontalStack(in view: UIView) -> UIStackView? {
         if let s = view as? UIStackView, s.axis == .horizontal { return s }
         for sub in view.subviews {
-            if let found = firstHorizontalStack(in: sub) { return found }
+            if let f = firstHorizontalStack(in: sub) { return f }
         }
         return nil
     }
@@ -251,6 +320,27 @@ import UIKit
     }
 }
 
+// MARK: - 3 second hold anywhere (esp. profile) opens settings
+
+private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
+    init() {
+        super.init(target: nil, action: nil)
+        minimumPressDuration = 3.0
+        cancelsTouchesInView = false
+        numberOfTouchesRequired = 1
+        addTarget(self, action: #selector(handle))
+    }
+
+    @objc private func handle(_ g: UILongPressGestureRecognizer) {
+        guard g.state == .began else { return }
+        if GlassPreferences.shared.hapticsEnabled {
+            let gen = UIImpactFeedbackGenerator(style: .medium)
+            gen.impactOccurred()
+        }
+        GlassSettingsPresenter.present()
+    }
+}
+
 @objc public class GlassLongPress: NSObject {
     @objc public static func enable(on view: UIView) {
         let already = view.gestureRecognizers?.contains { $0 is GlassLongPressGesture } ?? false
@@ -273,9 +363,7 @@ private class GlassLongPressGesture: UILongPressGestureRecognizer {
         case .began:
             GlassAnimations.longPressLift(view)
             if GlassPreferences.shared.hapticsEnabled {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.prepare()
-                generator.impactOccurred()
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }
         case .ended, .cancelled, .failed:
             GlassAnimations.longPressRelease(view)

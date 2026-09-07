@@ -133,19 +133,52 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(presetCard)
 
         // MARK: Appearance
+        // MARK: Quick Themes (new feature)
+        stack.addArrangedSubview(makeSectionHeader(title: "Quick Themes", icon: "paintpalette"))
+        let themeCard = makeCard()
+        let themeRow = UIStackView()
+        themeRow.axis = .horizontal
+        themeRow.spacing = 8
+        themeRow.distribution = .fillEqually
+        themeRow.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        themeRow.isLayoutMarginsRelativeArrangement = true
+        for name in ["Midnight", "Crystal", "Smoke", "Minimal"] {
+            let b = UIButton(type: .system)
+            b.setTitle(name, for: .normal)
+            b.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+            b.backgroundColor = UIColor.tertiarySystemFill
+            b.layer.cornerRadius = 8
+            b.addAction(UIAction { _ in
+                GlossyGlassAPI.shared.applyQuickTheme(name)
+            }, for: .touchUpInside)
+            themeRow.addArrangedSubview(b)
+        }
+        themeCard.addArrangedSubview(themeRow)
+        stack.addArrangedSubview(themeCard)
+
         stack.addArrangedSubview(makeSectionHeader(title: "Appearance", icon: "sparkles"))
         let appearanceCard = makeCard()
 
-        // Style segmented
+        // Style dropdown menu
         appearanceCard.addArrangedSubview(makeLabelRow("Style", "Frosted / Clear / Tinted"))
-        let styleControl = UISegmentedControl(items: ["Frosted", "Clear", "Tinted"])
-        styleControl.selectedSegmentIndex = ["Frosted", "Clear", "Tinted"].firstIndex(of: prefs.style) ?? 0
-        styleControl.selectedSegmentTintColor = .systemPurple
-        styleControl.addAction(UIAction { [weak self] action in
-            let idx = (action.sender as! UISegmentedControl).selectedSegmentIndex
-            self?.prefs.style = ["Frosted", "Clear", "Tinted"][idx]
-        }, for: .valueChanged)
-        let styleWrap = UIStackView(arrangedSubviews: [styleControl])
+        let styleBtn = UIButton(type: .system)
+        styleBtn.setTitle("  \(prefs.style)  ▼", for: .normal)
+        styleBtn.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        styleBtn.contentHorizontalAlignment = .left
+        styleBtn.backgroundColor = UIColor.tertiarySystemFill
+        styleBtn.layer.cornerRadius = 8
+        styleBtn.heightAnchor.constraint(equalToConstant: 36).isActive = true
+        if #available(iOS 14.0, *) {
+            let items = ["Frosted", "Clear", "Tinted"].map { name -> UIAction in
+                UIAction(title: name, state: prefs.style == name ? .on : .off) { [weak self, weak styleBtn] _ in
+                    self?.prefs.style = name
+                    styleBtn?.setTitle("  \(name)  ▼", for: .normal)
+                }
+            }
+            styleBtn.menu = UIMenu(title: "Glass Style", children: items)
+            styleBtn.showsMenuAsPrimaryAction = true
+        }
+        let styleWrap = UIStackView(arrangedSubviews: [styleBtn])
         styleWrap.layoutMargins = UIEdgeInsets(top: 4, left: 0, bottom: 10, right: 0)
         styleWrap.isLayoutMarginsRelativeArrangement = true
         appearanceCard.addArrangedSubview(styleWrap)
@@ -232,6 +265,10 @@ private class GlassSettingsViewController: UIViewController {
             self?.prefs.hapticsEnabled = on
         })
         systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Focus Mode", subtitle: "Extra dim for reading", isOn: GlassLiveState.shared.focusMode) { on in
+            GlossyGlassAPI.shared.setFocusMode(on)
+        })
+        systemCard.addArrangedSubview(makeDivider())
         systemCard.addArrangedSubview(makeSwitchRow(title: "Hide Glass Button", subtitle: "Remove profile button", isOn: prefs.hideGlassButton) { [weak self] on in
             self?.prefs.hideGlassButton = on
             GlassInjector.forceRedetect()
@@ -274,8 +311,9 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(redetectBtn)
 
         let footer = UILabel()
-        footer.text = "GlossyGlass  ·  Made by Killswitch  ·  v3.1"
-        footer.font = .systemFont(ofSize: 12, weight: .medium)
+        footer.text = "Hold anywhere 3s to open settings\nGlossyGlass · Killswitch · v3.1"
+        footer.font = .systemFont(ofSize: 11, weight: .medium)
+        footer.numberOfLines = 2
         footer.textColor = .tertiaryLabel
         footer.textAlignment = .center
         stack.addArrangedSubview(footer)
