@@ -61,7 +61,7 @@ Not another blur overlay. A **full glass engine** — material, specular, noise,
 
 ### Control
 - Runtime **Glass** button on profile  
-- **Hold 3 seconds** anywhere → open settings  
+- **Hold 3 seconds** on profile button → open settings  
 - Presets: Clean · Default · Heavy · Performance  
 - **Quick Themes:** Midnight · Crystal · Smoke · Minimal  
 - **Focus Mode** for reading  
