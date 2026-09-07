@@ -1,6 +1,5 @@
 import UIKit
 
-/// Versioned public API for other tweaks
 @objc public class GlossyGlassAPI: NSObject {
 
     @objc public static let shared = GlossyGlassAPI()
@@ -8,6 +7,7 @@ import UIKit
 
     @objc public func setEnabled(_ enabled: Bool) {
         GlassPreferences.shared.isEnabled = enabled
+        if enabled { GlassPreferences.shared.safeMode = false }
     }
 
     @objc public func isEnabled() -> Bool {
@@ -42,16 +42,15 @@ import UIKit
         GlassInjector.forceRedetect()
     }
 
+    /// Safe mode only blocks injection — visual glass can stay on
     @objc public func enterSafeMode() {
         GlassPreferences.shared.safeMode = true
-        GlassPreferences.shared.isEnabled = false
         GlassInjector.forceRedetect()
     }
 
     @objc public func exitSafeMode() {
         GlassPreferences.shared.safeMode = false
         GlassPreferences.shared.crashCount = 0
-        GlassPreferences.shared.isEnabled = true
         GlassInjector.forceRedetect()
     }
 

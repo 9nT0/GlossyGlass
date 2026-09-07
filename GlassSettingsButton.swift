@@ -1,6 +1,5 @@
 import UIKit
 
-/// Glass settings button that opens the polished settings panel
 @objc public class GlassSettingsButton: GlassButton {
 
     public override init(frame: CGRect) {
@@ -35,9 +34,7 @@ import UIKit
             .first(where: { $0.isKeyWindow })?.rootViewController else { return }
 
         var top = root
-        while let presented = top.presentedViewController {
-            top = presented
-        }
+        while let presented = top.presentedViewController { top = presented }
 
         let nav = UINavigationController(rootViewController: GlassSettingsViewController())
         nav.modalPresentationStyle = .pageSheet
@@ -51,8 +48,6 @@ import UIKit
     }
 }
 
-// MARK: - Settings View Controller (matches the clean design)
-
 private class GlassSettingsViewController: UIViewController {
 
     private let prefs = GlassPreferences.shared
@@ -61,9 +56,7 @@ private class GlassSettingsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.95)
-        title = ""
 
-        // Custom title
         let titleLabel = UILabel()
         titleLabel.text = "Glass Tweak"
         titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
@@ -82,16 +75,10 @@ private class GlassSettingsViewController: UIViewController {
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
-            style: .plain,
-            target: self,
-            action: #selector(close)
+            style: .plain, target: self, action: #selector(close)
         )
-
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Reset",
-            style: .plain,
-            target: self,
-            action: #selector(resetDefaults)
+            title: "Reset", style: .plain, target: self, action: #selector(resetDefaults)
         )
 
         let scroll = UIScrollView()
@@ -109,7 +96,6 @@ private class GlassSettingsViewController: UIViewController {
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
             stack.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 16),
             stack.leadingAnchor.constraint(equalTo: scroll.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: -16),
@@ -121,115 +107,174 @@ private class GlassSettingsViewController: UIViewController {
     }
 
     private func buildUI() {
-        // MARK: Appearance Section
-        stack.addArrangedSubview(makeSectionHeader(title: "Appearance", icon: "sparkles"))
+        // MARK: Presets
+        stack.addArrangedSubview(makeSectionHeader(title: "Presets", icon: "square.grid.2x2"))
+        let presetCard = makeCard()
+        let presetRow = UIStackView()
+        presetRow.axis = .horizontal
+        presetRow.spacing = 8
+        presetRow.distribution = .fillEqually
+        presetRow.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        presetRow.isLayoutMarginsRelativeArrangement = true
+        for name in ["Clean", "Default", "Heavy", "Perf"] {
+            let full = name == "Perf" ? "Performance" : name
+            let b = UIButton(type: .system)
+            b.setTitle(name, for: .normal)
+            b.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            b.backgroundColor = prefs.preset == full ? UIColor.systemPurple.withAlphaComponent(0.25) : UIColor.tertiarySystemFill
+            b.layer.cornerRadius = 8
+            b.addAction(UIAction { [weak self] _ in
+                self?.prefs.applyPreset(full)
+                self?.reloadUI()
+            }, for: .touchUpInside)
+            presetRow.addArrangedSubview(b)
+        }
+        presetCard.addArrangedSubview(presetRow)
+        stack.addArrangedSubview(presetCard)
 
+        // MARK: Appearance
+        stack.addArrangedSubview(makeSectionHeader(title: "Appearance", icon: "sparkles"))
         let appearanceCard = makeCard()
-        appearanceCard.addArrangedSubview(makeDropdownRow(title: "Style", subtitle: "Choose the glass effect style", value: "Frosted"))
+
+        // Style segmented
+        appearanceCard.addArrangedSubview(makeLabelRow("Style", "Frosted / Clear / Tinted"))
+        let styleControl = UISegmentedControl(items: ["Frosted", "Clear", "Tinted"])
+        styleControl.selectedSegmentIndex = ["Frosted", "Clear", "Tinted"].firstIndex(of: prefs.style) ?? 0
+        styleControl.selectedSegmentTintColor = .systemPurple
+        styleControl.addAction(UIAction { [weak self] action in
+            let idx = (action.sender as! UISegmentedControl).selectedSegmentIndex
+            self?.prefs.style = ["Frosted", "Clear", "Tinted"][idx]
+        }, for: .valueChanged)
+        let styleWrap = UIStackView(arrangedSubviews: [styleControl])
+        styleWrap.layoutMargins = UIEdgeInsets(top: 4, left: 0, bottom: 10, right: 0)
+        styleWrap.isLayoutMarginsRelativeArrangement = true
+        appearanceCard.addArrangedSubview(styleWrap)
         appearanceCard.addArrangedSubview(makeDivider())
-        appearanceCard.addArrangedSubview(makeSliderRow(title: "Intensity", subtitle: "Overall glass blur strength", value: Float(prefs.glossIntensity)) { [weak self] v in
-            self?.prefs.glossIntensity = CGFloat(v)
+
+        appearanceCard.addArrangedSubview(makeSliderRow(title: "Intensity", subtitle: "Master multiplier", value: Float(prefs.intensity)) { [weak self] v in
+            self?.prefs.intensity = CGFloat(v)
         })
         appearanceCard.addArrangedSubview(makeDivider())
-        appearanceCard.addArrangedSubview(makeSliderRow(title: "Opacity", subtitle: "Glass layer opacity", value: Float(prefs.opacity)) { [weak self] v in
+        appearanceCard.addArrangedSubview(makeSliderRow(title: "Light Intensity", subtitle: "Used in Light Mode", value: Float(prefs.lightIntensity)) { [weak self] v in
+            self?.prefs.lightIntensity = CGFloat(v)
+        })
+        appearanceCard.addArrangedSubview(makeDivider())
+        appearanceCard.addArrangedSubview(makeSliderRow(title: "Dark Intensity", subtitle: "Used in Dark Mode", value: Float(prefs.darkIntensity)) { [weak self] v in
+            self?.prefs.darkIntensity = CGFloat(v)
+        })
+        appearanceCard.addArrangedSubview(makeDivider())
+        appearanceCard.addArrangedSubview(makeSliderRow(title: "Opacity", subtitle: "Master opacity", value: Float(prefs.opacity)) { [weak self] v in
             self?.prefs.opacity = CGFloat(v)
         })
         stack.addArrangedSubview(appearanceCard)
 
-        // MARK: Effects Section
+        // MARK: Effects
         stack.addArrangedSubview(makeSectionHeader(title: "Effects", icon: "water.waves"))
-
         let effectsCard = makeCard()
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Blur", subtitle: "Enable background blur", isOn: prefs.blurEnabled) { [weak self] on in
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Blur", subtitle: "Background blur", isOn: prefs.blurEnabled) { [weak self] on in
             self?.prefs.blurEnabled = on
         })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Vibrancy", subtitle: "Boost colors underneath glass", isOn: prefs.vibrancyEnabled) { [weak self] on in
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Vibrancy", subtitle: "Boost colors under glass", isOn: prefs.vibrancyEnabled) { [weak self] on in
             self?.prefs.vibrancyEnabled = on
         })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Noise", subtitle: "Add subtle texture to glass", isOn: prefs.noiseEnabled) { [weak self] on in
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Noise", subtitle: "Subtle grain texture", isOn: prefs.noiseEnabled) { [weak self] on in
             self?.prefs.noiseEnabled = on
         })
         effectsCard.addArrangedSubview(makeDivider())
-        effectsCard.addArrangedSubview(makeSwitchRow(title: "Light Bloom", subtitle: "Soft glow around bright areas", isOn: prefs.lightBloomEnabled) { [weak self] on in
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Light Bloom", subtitle: "Soft top glow", isOn: prefs.lightBloomEnabled) { [weak self] on in
             self?.prefs.lightBloomEnabled = on
+        })
+        effectsCard.addArrangedSubview(makeDivider())
+        effectsCard.addArrangedSubview(makeSwitchRow(title: "Edge Highlight", subtitle: "Refraction-style rim", isOn: prefs.edgeHighlightEnabled) { [weak self] on in
+            self?.prefs.edgeHighlightEnabled = on
         })
         stack.addArrangedSubview(effectsCard)
 
-        // MARK: Advanced Section
+        // MARK: Advanced
         stack.addArrangedSubview(makeSectionHeader(title: "Advanced", icon: "gearshape"))
-
         let advancedCard = makeCard()
-        advancedCard.addArrangedSubview(makeDropdownRow(title: "Corner Radius", subtitle: "Roundness of glass corners", value: "Large"))
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Corner Radius", subtitle: "0 – 40 pt", value: Float(prefs.cornerRadius / 40.0)) { [weak self] v in
+            self?.prefs.cornerRadius = CGFloat(v) * 40.0
+        })
         advancedCard.addArrangedSubview(makeDivider())
-        advancedCard.addArrangedSubview(makeSliderRow(title: "Saturation", subtitle: "Color saturation of glass", value: Float(prefs.saturation)) { [weak self] v in
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Saturation", subtitle: "Tint richness", value: Float(prefs.saturation)) { [weak self] v in
             self?.prefs.saturation = CGFloat(v)
         })
         advancedCard.addArrangedSubview(makeDivider())
-        advancedCard.addArrangedSubview(makeSliderRow(title: "Dimming", subtitle: "Darken content behind glass", value: Float(prefs.dimming)) { [weak self] v in
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Dimming", subtitle: "Darken behind glass", value: Float(prefs.dimming)) { [weak self] v in
             self?.prefs.dimming = CGFloat(v)
+        })
+        advancedCard.addArrangedSubview(makeDivider())
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Spring Response", subtitle: "Animation speed", value: Float(prefs.springResponse)) { [weak self] v in
+            self?.prefs.springResponse = CGFloat(v)
+        })
+        advancedCard.addArrangedSubview(makeDivider())
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Spring Damping", subtitle: "Animation bounce", value: Float(prefs.springDamping)) { [weak self] v in
+            self?.prefs.springDamping = CGFloat(v)
         })
         stack.addArrangedSubview(advancedCard)
 
-
-        // Extra v3 controls
-        let extraCard = makeCard()
-        extraCard.addArrangedSubview(makeSwitchRow(title: "Edge Highlight", subtitle: "Refraction-style rim", isOn: prefs.edgeHighlightEnabled) { [weak self] on in
-            self?.prefs.edgeHighlightEnabled = on
-        })
-        extraCard.addArrangedSubview(makeDivider())
-        extraCard.addArrangedSubview(makeSwitchRow(title: "Haptics", subtitle: "Touch feedback", isOn: prefs.hapticsEnabled) { [weak self] on in
-            self?.prefs.hapticsEnabled = on
-        })
-        extraCard.addArrangedSubview(makeDivider())
-        extraCard.addArrangedSubview(makeSwitchRow(title: "Safe Mode", subtitle: "Disable injection if unstable", isOn: prefs.safeMode) { [weak self] on in
-            self?.prefs.safeMode = on
-            if on { GlossyGlassAPI.shared.enterSafeMode() } else { GlossyGlassAPI.shared.exitSafeMode() }
-        })
-        stack.addArrangedSubview(extraCard)
-
-        // MARK: Master + Elements
-        let masterCard = makeCard()
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Enable GlossyGlass", subtitle: "Master switch", isOn: prefs.isEnabled) { [weak self] on in
+        // MARK: System
+        stack.addArrangedSubview(makeSectionHeader(title: "System", icon: "switch.2"))
+        let systemCard = makeCard()
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Enable GlossyGlass", subtitle: "Master switch", isOn: prefs.isEnabled) { [weak self] on in
             self?.prefs.isEnabled = on
+            if on { self?.prefs.safeMode = false }
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Lightweight Mode", subtitle: "Better performance", isOn: prefs.lightweightMode) { [weak self] on in
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Lightweight Mode", subtitle: "Better performance", isOn: prefs.lightweightMode) { [weak self] on in
             self?.prefs.lightweightMode = on
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Hide Glass Button", subtitle: "Remove the profile Glass button", isOn: prefs.hideGlassButton) { [weak self] on in
-            self?.prefs.hideGlassButton = on
-            GlassInjector.attemptInjection()
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Haptics", subtitle: "Touch feedback", isOn: prefs.hapticsEnabled) { [weak self] on in
+            self?.prefs.hapticsEnabled = on
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Navigation Bar", subtitle: nil, isOn: prefs.styleNavigationBar) { [weak self] on in
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Hide Glass Button", subtitle: "Remove profile button", isOn: prefs.hideGlassButton) { [weak self] on in
+            self?.prefs.hideGlassButton = on
+            GlassInjector.forceRedetect()
+        })
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Safe Mode", subtitle: "Disable injection only", isOn: prefs.safeMode) { [weak self] on in
+            // Safe mode only blocks injection — does NOT force isEnabled off
+            self?.prefs.safeMode = on
+            GlassInjector.forceRedetect()
+        })
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Navigation Bar", subtitle: nil, isOn: prefs.styleNavigationBar) { [weak self] on in
             self?.prefs.styleNavigationBar = on
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Tab Bar", subtitle: nil, isOn: prefs.styleTabBar) { [weak self] on in
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Tab Bar", subtitle: nil, isOn: prefs.styleTabBar) { [weak self] on in
             self?.prefs.styleTabBar = on
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Buttons", subtitle: nil, isOn: prefs.styleButtons) { [weak self] on in
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Buttons", subtitle: nil, isOn: prefs.styleButtons) { [weak self] on in
             self?.prefs.styleButtons = on
         })
-        masterCard.addArrangedSubview(makeDivider())
-        masterCard.addArrangedSubview(makeSwitchRow(title: "Cards", subtitle: nil, isOn: prefs.styleCards) { [weak self] on in
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Cards", subtitle: nil, isOn: prefs.styleCards) { [weak self] on in
             self?.prefs.styleCards = on
         })
-        stack.addArrangedSubview(masterCard)
+        stack.addArrangedSubview(systemCard)
 
+        // Actions
         let diagBtn = UIButton(type: .system)
         diagBtn.setTitle("Open Diagnostics", for: .normal)
         diagBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        diagBtn.addAction(UIAction { _ in GlassDiagnostics.shared.present(from: self) }, for: .touchUpInside)
+        diagBtn.addAction(UIAction { [weak self] _ in GlassDiagnostics.shared.present(from: self) }, for: .touchUpInside)
         stack.addArrangedSubview(diagBtn)
 
-        // Footer / Branding
+        let redetectBtn = UIButton(type: .system)
+        redetectBtn.setTitle("Re-detect UI", for: .normal)
+        redetectBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        redetectBtn.addAction(UIAction { _ in GlassInjector.forceRedetect() }, for: .touchUpInside)
+        stack.addArrangedSubview(redetectBtn)
+
         let footer = UILabel()
-        footer.text = "GlossyGlass  ·  Made by Killswitch  ·  v3"
+        footer.text = "GlossyGlass  ·  Made by Killswitch  ·  v3.1"
         footer.font = .systemFont(ofSize: 12, weight: .medium)
         footer.textColor = .tertiaryLabel
         footer.textAlignment = .center
@@ -242,24 +287,26 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(discord)
     }
 
-    // MARK: - UI Helpers
+    private func reloadUI() {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        buildUI()
+    }
+
+    // MARK: - Helpers
 
     private func makeSectionHeader(title: String, icon: String) -> UIView {
         let row = UIStackView()
         row.axis = .horizontal
         row.spacing = 8
         row.alignment = .center
-
         let image = UIImageView(image: UIImage(systemName: icon))
         image.tintColor = .systemPurple
         image.contentMode = .scaleAspectFit
         image.widthAnchor.constraint(equalToConstant: 18).isActive = true
         image.heightAnchor.constraint(equalToConstant: 18).isActive = true
-
         let label = UILabel()
         label.text = title
         label.font = .systemFont(ofSize: 15, weight: .semibold)
-
         row.addArrangedSubview(image)
         row.addArrangedSubview(label)
         row.addArrangedSubview(UIView())
@@ -285,6 +332,24 @@ private class GlassSettingsViewController: UIViewController {
         return v
     }
 
+    private func makeLabelRow(_ title: String, _ subtitle: String) -> UIView {
+        let container = UIStackView()
+        container.axis = .vertical
+        container.spacing = 2
+        container.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 4, right: 0)
+        container.isLayoutMarginsRelativeArrangement = true
+        let t = UILabel()
+        t.text = title
+        t.font = .systemFont(ofSize: 15, weight: .medium)
+        let s = UILabel()
+        s.text = subtitle
+        s.font = .systemFont(ofSize: 12)
+        s.textColor = .secondaryLabel
+        container.addArrangedSubview(t)
+        container.addArrangedSubview(s)
+        return container
+    }
+
     private func makeSwitchRow(title: String, subtitle: String?, isOn: Bool, onChange: @escaping (Bool) -> Void) -> UIView {
         let container = UIStackView()
         container.axis = .horizontal
@@ -296,13 +361,10 @@ private class GlassSettingsViewController: UIViewController {
         let textStack = UIStackView()
         textStack.axis = .vertical
         textStack.spacing = 2
-
         let titleLabel = UILabel()
         titleLabel.text = title
         titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
-
         textStack.addArrangedSubview(titleLabel)
-
         if let subtitle = subtitle {
             let sub = UILabel()
             sub.text = subtitle
@@ -310,14 +372,12 @@ private class GlassSettingsViewController: UIViewController {
             sub.textColor = .secondaryLabel
             textStack.addArrangedSubview(sub)
         }
-
         let sw = UISwitch()
         sw.isOn = isOn
         sw.onTintColor = .systemPurple
         sw.addAction(UIAction { action in
             onChange((action.sender as! UISwitch).isOn)
         }, for: .valueChanged)
-
         container.addArrangedSubview(textStack)
         container.addArrangedSubview(UIView())
         container.addArrangedSubview(sw)
@@ -333,16 +393,13 @@ private class GlassSettingsViewController: UIViewController {
 
         let top = UIStackView()
         top.axis = .horizontal
-
         let titleLabel = UILabel()
         titleLabel.text = title
         titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
-
         let valueLabel = UILabel()
         valueLabel.text = "\(Int(value * 100))%"
         valueLabel.font = .systemFont(ofSize: 13, weight: .medium)
         valueLabel.textColor = .secondaryLabel
-
         top.addArrangedSubview(titleLabel)
         top.addArrangedSubview(UIView())
         top.addArrangedSubview(valueLabel)
@@ -369,51 +426,9 @@ private class GlassSettingsViewController: UIViewController {
         return container
     }
 
-    private func makeDropdownRow(title: String, subtitle: String, value: String) -> UIView {
-        let container = UIStackView()
-        container.axis = .horizontal
-        container.alignment = .center
-        container.spacing = 12
-        container.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
-        container.isLayoutMarginsRelativeArrangement = true
-
-        let textStack = UIStackView()
-        textStack.axis = .vertical
-        textStack.spacing = 2
-
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
-
-        let sub = UILabel()
-        sub.text = subtitle
-        sub.font = .systemFont(ofSize: 12)
-        sub.textColor = .secondaryLabel
-
-        textStack.addArrangedSubview(titleLabel)
-        textStack.addArrangedSubview(sub)
-
-        let valueLabel = UILabel()
-        valueLabel.text = value
-        valueLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        valueLabel.textColor = .secondaryLabel
-
-        let chevron = UIImageView(image: UIImage(systemName: "chevron.up.chevron.down"))
-        chevron.tintColor = .tertiaryLabel
-        chevron.contentMode = .scaleAspectFit
-        chevron.widthAnchor.constraint(equalToConstant: 12).isActive = true
-
-        container.addArrangedSubview(textStack)
-        container.addArrangedSubview(UIView())
-        container.addArrangedSubview(valueLabel)
-        container.addArrangedSubview(chevron)
-        return container
-    }
-
     @objc private func resetDefaults() {
         prefs.resetToDefaults()
-        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        buildUI()
+        reloadUI()
     }
 
     @objc private func openDiscord() {

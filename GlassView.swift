@@ -159,16 +159,22 @@ import UIKit
         let prefs = GlassPreferences.shared
 
         guard prefs.isEnabled else {
+            backgroundColor = .clear
             blurView.effect = nil
             vibrancyView.effect = nil
+            vibrancyView.isHidden = true
             dimmingLayer.backgroundColor = UIColor.clear.cgColor
             tintLayer.backgroundColor = UIColor.clear.cgColor
             noiseLayer.contents = nil
             noiseLayer.opacity = 0
+            noiseLayer.isHidden = true
             glossLayer.colors = [UIColor.clear.cgColor]
             bloomLayer.colors = [UIColor.clear.cgColor]
+            bloomLayer.isHidden = true
             edgeHighlightLayer.colors = [UIColor.clear.cgColor]
+            edgeHighlightLayer.isHidden = true
             borderLayer.borderColor = UIColor.clear.cgColor
+            borderLayer.borderWidth = 0
             return
         }
 

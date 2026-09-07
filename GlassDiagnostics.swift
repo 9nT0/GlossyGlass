@@ -1,6 +1,5 @@
 import UIKit
 
-/// Runtime diagnostics for debugging injection and renderer state
 @objc public class GlassDiagnostics: NSObject {
 
     @objc public static let shared = GlassDiagnostics()
@@ -15,15 +14,10 @@ import UIKit
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     }
 
-    @objc public var glassVersion: String { "3.0.0" }
+    @objc public var glassVersion: String { "3.1.0" }
 
-    @objc public var iosVersion: String {
-        UIDevice.current.systemVersion
-    }
-
-    @objc public var deviceModel: String {
-        UIDevice.current.model
-    }
+    @objc public var iosVersion: String { UIDevice.current.systemVersion }
+    @objc public var deviceModel: String { UIDevice.current.model }
 
     @objc public func recordInjection(score: Int, host: String, candidates: Int, attached: Bool, note: String) {
         lastScore = score
@@ -31,21 +25,32 @@ import UIKit
         candidateCount = candidates
         isAttached = attached
         lastInjectionNote = note
-        GlassPreferences.shared.log("Diagnostics: score=\(score) host=\(host) candidates=\(candidates) attached=\(attached) — \(note)")
+        GlassPreferences.shared.log("Diag: score=\(score) host=\(host) cands=\(candidates) attached=\(attached) — \(note)")
     }
 
     @objc public func summary() -> String {
-        """
-        GlossyGlass Diagnostics
-        -----------------------
+        let p = GlassPreferences.shared
+        return """
+        GlossyGlass Diagnostics v3.1
+        ----------------------------
         Glass: \(glassVersion)
         iOS: \(iosVersion)
         Device: \(deviceModel)
         Host app: \(hostAppVersion)
-        Safe mode: \(GlassPreferences.shared.safeMode)
+
+        Enabled: \(p.isEnabled)
+        Safe mode: \(p.safeMode)
+        Style: \(p.style)
+        Intensity: \(String(format: "%.2f", p.intensity))
+        Opacity: \(String(format: "%.2f", p.opacity))
+        Blur: \(p.blurEnabled)  Vibrancy: \(p.vibrancyEnabled)
+        Noise: \(p.noiseEnabled)  Bloom: \(p.lightBloomEnabled)
+        Edge: \(p.edgeHighlightEnabled)
+        Lightweight: \(p.lightweightMode)
+
         Attached: \(isAttached)
         Last score: \(lastScore)
-        Host class: \(lastHostClass)
+        Host: \(lastHostClass)
         Candidates: \(candidateCount)
         Note: \(lastInjectionNote)
         """
@@ -65,7 +70,6 @@ import UIKit
             .compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }
             .first { $0.isKeyWindow }?.rootViewController
-
         var top = root
         while let p = top?.presentedViewController { top = p }
         top?.present(alert, animated: true)
