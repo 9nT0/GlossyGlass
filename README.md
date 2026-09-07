@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="cover.png" alt="GlossyGlass Cover" width="100%"/>
+  <img src="Cover.png" alt="GlossyGlass Cover" width="100%"/>
 </p>
 
 <h1 align="center">GlossyGlass</h1>
