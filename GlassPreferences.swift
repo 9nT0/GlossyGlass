@@ -23,6 +23,10 @@ import Foundation
         case lightIntensity       = "GG_LightIntensity"
         case darkIntensity        = "GG_DarkIntensity"
         case hideGlassButton      = "GG_HideGlassButton"
+        case forceShowGlassButton = "GG_ForceShowGlassButton"
+        case autoApplyScreenProfiles = "GG_AutoApplyScreenProfiles"
+        case lastButtonX = "GG_LastButtonX"
+        case lastButtonY = "GG_LastButtonY"
         case styleNavigationBar   = "GG_StyleNavigationBar"
         case styleTabBar          = "GG_StyleTabBar"
         case styleButtons         = "GG_StyleButtons"
@@ -73,6 +77,10 @@ import Foundation
             Key.lightIntensity.rawValue     : 0.55,
             Key.darkIntensity.rawValue      : 0.45,
             Key.hideGlassButton.rawValue    : false,
+            Key.forceShowGlassButton.rawValue : false,
+            Key.autoApplyScreenProfiles.rawValue : false,
+            Key.lastButtonX.rawValue : -1.0,
+            Key.lastButtonY.rawValue : -1.0,
             "GG_LightweightMode"            : false,
             Key.styleNavigationBar.rawValue : true,
             Key.styleTabBar.rawValue        : true,
@@ -250,6 +258,30 @@ import Foundation
         set { defaults.set(newValue, forKey: Key.crashCount.rawValue) }
     }
 
+
+    @objc public var forceShowGlassButton: Bool {
+        get { defaults.bool(forKey: Key.forceShowGlassButton.rawValue) }
+        set { defaults.set(newValue, forKey: Key.forceShowGlassButton.rawValue); notifyChange() }
+    }
+
+    @objc public var autoApplyScreenProfiles: Bool {
+        get { defaults.bool(forKey: Key.autoApplyScreenProfiles.rawValue) }
+        set { defaults.set(newValue, forKey: Key.autoApplyScreenProfiles.rawValue); notifyChange() }
+    }
+
+    @objc public var lastButtonPoint: CGPoint {
+        get {
+            let x = defaults.double(forKey: Key.lastButtonX.rawValue)
+            let y = defaults.double(forKey: Key.lastButtonY.rawValue)
+            if x < 0 || y < 0 { return CGPoint(x: -1, y: -1) }
+            return CGPoint(x: x, y: y)
+        }
+        set {
+            defaults.set(Double(newValue.x), forKey: Key.lastButtonX.rawValue)
+            defaults.set(Double(newValue.y), forKey: Key.lastButtonY.rawValue)
+        }
+    }
+
     // MARK: - Compatibility aliases
 
     @objc public var glossIntensity: CGFloat {
@@ -318,11 +350,12 @@ import Foundation
             cornerRadius = 28; saturation = 0.80; dimming = 0.45
             lightIntensity = 0.70; darkIntensity = 0.55; lightweightMode = false
         case "Performance":
-            style = "Clear"; intensity = 0.35; opacity = 0.60
+            style = "Clear"; intensity = 0.28; opacity = 0.55
             blurEnabled = false; vibrancyEnabled = false; noiseEnabled = false
             lightBloomEnabled = false; edgeHighlightEnabled = false
-            cornerRadius = 18; saturation = 0.30; dimming = 0.10
-            lightIntensity = 0.30; darkIntensity = 0.25; lightweightMode = true
+            cornerRadius = 16; saturation = 0.25; dimming = 0.08
+            lightIntensity = 0.28; darkIntensity = 0.22; lightweightMode = true
+            springResponse = 0.20; springDamping = 0.90
         case "Off":
             isEnabled = false
         default:

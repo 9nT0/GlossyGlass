@@ -180,13 +180,14 @@ import UIKit
 
         // Accessibility: Reduce Transparency → solid-ish fallback
         let reduceTransparency = UIAccessibility.isReduceTransparencyEnabled
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
 
         let isDark = traitCollection.userInterfaceStyle == .dark
         let masterOpacity = max(0, min(1, prefs.opacity))
         let effectiveIntensity = max(0, min(1,
             (isDark ? prefs.darkIntensity : prefs.lightIntensity) * prefs.intensity
         ))
-        let light = prefs.lightweightMode
+        let light = prefs.lightweightMode || reduceMotion
 
         // MARK: Style → blur material
         let blurStyle: UIBlurEffect.Style

@@ -171,14 +171,21 @@ import UIKit
         }
         guard prefs.isEnabled else { return }
 
-        if prefs.hideGlassButton {
+        if prefs.hideGlassButton && !prefs.forceShowGlassButton {
             removeExistingButtons()
+            removeFloatingFallback()
             attachedButton = nil
             attachedHost = nil
             return
         }
 
         if let btn = attachedButton, btn.superview != nil { return }
+
+        // Force show: permanent floating fallback, ignore detection
+        if prefs.forceShowGlassButton {
+            ensureFloatingFallback()
+            return
+        }
 
         // Try last good host first (fast path)
         if let host = lastGoodHost, host.superview != nil {
@@ -214,9 +221,14 @@ import UIKit
             if injectionAttempts >= 14 {
                 GlassAppSupport.shared.warnIfUnsupportedIfNeeded()
             }
+            // Permanent fallback so the button never "disappears" forever
+            if injectionAttempts >= 6 {
+                ensureFloatingFallback()
+            }
             return
         }
 
+        removeFloatingFallback()
         inject(into: winner.view, kind: winner.kind, score: winner.score)
     }
 
@@ -250,6 +262,12 @@ import UIKit
         attachedButton = btn
         attachedHost = host
         lastGoodHost = host
+        DispatchQueue.main.async {
+            let pt = btn.convert(btn.bounds.origin, to: nil)
+            if pt.x > 0 && pt.y > 0 {
+                GlassPreferences.shared.lastButtonPoint = pt
+            }
+        }
         GlassDiagnostics.shared.recordInjection(
             score: score, host: kind, candidates: 1, attached: true, note: "Injected via \(kind)"
         )

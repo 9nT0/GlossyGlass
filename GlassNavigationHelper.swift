@@ -71,9 +71,9 @@ import UIKit
 
         let blurStyle: UIBlurEffect.Style = prefs.lightweightMode
             ? .systemUltraThinMaterial
-            : .systemThinMaterial
-        appearance.backgroundEffect = UIBlurEffect(style: blurStyle)
-        appearance.backgroundColor = UIColor.clear
+            : .systemMaterial
+        appearance.backgroundEffect = prefs.blurEnabled ? UIBlurEffect(style: blurStyle) : nil
+        appearance.backgroundColor = prefs.blurEnabled ? UIColor.clear : UIColor.secondarySystemBackground.withAlphaComponent(0.92)
         appearance.shadowColor = .clear
 
         appearance.titleTextAttributes = [

@@ -121,6 +121,19 @@ import UIKit
 
     @objc public func resetInjectionState() { GlassInjector.resetInjectionState() }
 
+    @objc public func setForceShowGlassButton(_ on: Bool) {
+        GlassPreferences.shared.forceShowGlassButton = on
+        GlassInjector.forceRedetect()
+    }
+
+    @objc public func setAutoApplyScreenProfiles(_ on: Bool) {
+        GlassPreferences.shared.autoApplyScreenProfiles = on
+    }
+
+    @objc public func reapplyChromeStyles() {
+        GlassStyleApplicator.applyAll()
+    }
+
     @objc public func hostAppSummary() -> String { GlassAppSupport.shared.summary() }
 
     @objc public func isInstagramHost() -> Bool { GlassAppSupport.shared.isInstagram }

@@ -40,7 +40,7 @@ import UIKit
             self.launch()
         }
 
-        NSLog("[GlossyGlass] Loader v3.1 initialized")
+        NSLog("[GlossyGlass] Loader v3.6 initialized")
     }
 
     private func launch() {
@@ -50,6 +50,8 @@ import UIKit
         }
         GlassDeviceProfiler.applyIfNeeded()
         GlassInjector.start()
+        GlassStyleApplicator.start()
+        GlassScreenProfileMonitor.start()
     }
 }
 

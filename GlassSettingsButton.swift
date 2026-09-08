@@ -269,9 +269,18 @@ private class GlassSettingsViewController: UIViewController {
             GlossyGlassAPI.shared.setFocusMode(on)
         })
         systemCard.addArrangedSubview(makeDivider())
-        systemCard.addArrangedSubview(makeSwitchRow(title: "Hide Glass Button", subtitle: "Remove profile button", isOn: prefs.hideGlassButton) { [weak self] on in
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Hide Glass Button", subtitle: "Remove injected button", isOn: prefs.hideGlassButton) { [weak self] on in
             self?.prefs.hideGlassButton = on
             GlassInjector.forceRedetect()
+        })
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Force Show Glass Button", subtitle: "Ignore detection — always show", isOn: prefs.forceShowGlassButton) { [weak self] on in
+            self?.prefs.forceShowGlassButton = on
+            GlassInjector.forceRedetect()
+        })
+        systemCard.addArrangedSubview(makeDivider())
+        systemCard.addArrangedSubview(makeSwitchRow(title: "Auto Screen Profiles", subtitle: "Apply presets per screen", isOn: prefs.autoApplyScreenProfiles) { [weak self] on in
+            self?.prefs.autoApplyScreenProfiles = on
         })
         systemCard.addArrangedSubview(makeDivider())
         systemCard.addArrangedSubview(makeSwitchRow(title: "Safe Mode", subtitle: "Disable injection only", isOn: prefs.safeMode) { [weak self] on in
@@ -299,6 +308,25 @@ private class GlassSettingsViewController: UIViewController {
 
         // Actions
         let diagBtn = UIButton(type: .system)
+        let changeBtn = UIButton(type: .system)
+        changeBtn.setTitle("Changelog", for: .normal)
+        changeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        changeBtn.addAction(UIAction { [weak self] _ in
+            let alert = UIAlertController(title: "GlossyGlass 3.6", message: """
+• Messages 3s hold → settings
+• Force Show Glass button
+• Floating fallback if injection drops
+• Stronger Performance preset
+• Auto screen profiles (optional)
+• Nav / Tab / Buttons / Cards applicator
+• Smoother animations · stronger Reduce Motion
+• API v36 · iOS 16+ (17–18 recommended)
+""", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self?.present(alert, animated: true)
+        }, for: .touchUpInside)
+        stack.addArrangedSubview(changeBtn)
+
         diagBtn.setTitle("Open Diagnostics", for: .normal)
         diagBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         diagBtn.addAction(UIAction { [weak self] _ in GlassDiagnostics.shared.present(from: self) }, for: .touchUpInside)
