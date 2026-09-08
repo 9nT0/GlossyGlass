@@ -367,6 +367,61 @@ import UIKit
         return nil
     }
 
+
+    // MARK: - Floating permanent fallback
+
+    private static weak var floatingButton: GlassSettingsButton?
+
+    private static func ensureFloatingFallback() {
+        if let f = floatingButton, f.superview != nil {
+            attachedButton = f
+            return
+        }
+        removeFloatingFallback()
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
+
+        let btn = GlassSettingsButton()
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        window.addSubview(btn)
+
+        let saved = GlassPreferences.shared.lastButtonPoint
+        let topC: CGFloat
+        let trailC: CGFloat
+        if saved.x > 0 && saved.y > 0 {
+            topC = min(max(48, saved.y - 40), 120)
+            trailC = 16
+        } else {
+            topC = 56
+            trailC = 16
+        }
+
+        NSLayoutConstraint.activate([
+            btn.topAnchor.constraint(equalTo: window.safeAreaLayoutGuide.topAnchor, constant: topC),
+            btn.trailingAnchor.constraint(equalTo: window.safeAreaLayoutGuide.trailingAnchor, constant: -trailC),
+            btn.heightAnchor.constraint(equalToConstant: 32),
+            btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 56)
+        ])
+
+        let hold = GlassOpenSettingsLongPress()
+        hold.cancelsTouchesInView = false
+        btn.addGestureRecognizer(hold)
+
+        floatingButton = btn
+        attachedButton = btn
+        GlassDiagnostics.shared.recordInjection(
+            score: 50, host: "FloatingFallback", candidates: 0, attached: true, note: "Floating fallback"
+        )
+        GlassPreferences.shared.log("Floating Glass button shown")
+    }
+
+    private static func removeFloatingFallback() {
+        floatingButton?.removeFromSuperview()
+        floatingButton = nil
+    }
+
     private static func removeExistingButtons() {
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
