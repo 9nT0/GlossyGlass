@@ -1,18 +1,19 @@
 <p align="center">
-  <img src="Cover.jpg" alt="GlossyGlass Cover" width="100%"/>
+  <img src="Cover.jpg" alt="GlossyGlass" width="100%"/>
 </p>
 
 <h1 align="center">GlossyGlass</h1>
 
 <p align="center">
   <b>Liquid glass. Your rules.</b><br>
-  Advanced glass UI engine for <b>iOS 17 – 18.x</b>
+  Glass UI engine for modern iOS
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1-blueviolet?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/iOS-17%20—%2018.x-black?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/API-v31-purple?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/version-3.6-blueviolet?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/iOS-17%20—%2018.x%20recommended-black?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/iOS%2016-supported-lightgrey?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/API-v36-purple?style=for-the-badge"/>
 </p>
 
 <p align="center">
@@ -25,18 +26,14 @@
   <img src="4Xstg.jpg" width="100%" alt="Hero"/>
 </p>
 
----
+## Overview
 
-## Why GlossyGlass?
+GlossyGlass is a **dylib glass engine** for sideloaded apps. It is optimized for **Instagram**, with a **generic fallback** for other UIKit apps.
 
-Not another blur overlay. A **full glass engine** — material, specular, noise, bloom, edge light — with a settings panel that actually drives every layer.
-
-| | |
-|---|---|
-| **Looks** | Frosted · Clear · Tinted · Quick Themes |
-| **Feels** | Spring animations · long-press lift · haptics |
-| **Controls** | Live intensity · opacity · per-effect toggles |
-| **Survives** | Multi-strategy injection · 3s hold backup · Safe Mode |
+| Primary | Secondary |
+|---------|-----------|
+| Instagram (fast path, richer detection) | Other apps (generic injection + warning if unsupported) |
+| **iOS 17 – 18.x** (recommended) | iOS 16 (supported, not recommended) |
 
 ---
 
@@ -52,30 +49,29 @@ Not another blur overlay. A **full glass engine** — material, specular, noise,
 
 ## Features
 
-### Visual engine
-- Layer stack: blur → vibrancy → dimming → tint → noise → gloss → bloom → edge highlight → border  
-- Continuous corner curves  
-- Separate Light / Dark intensity  
-- Opacity as master multiplier  
-- Reduce Transparency & Reduce Motion aware  
+### Visual
+- Full layer stack: blur · vibrancy · dimming · tint · noise · gloss · bloom · edge highlight · border  
+- Frosted / Clear / Tinted · Quick Themes · Focus Mode · Live Tint  
+- Continuous corners · Light/Dark intensity · master opacity  
+- Smoother springs (v3.6) · Reduce Motion / Reduce Transparency  
 
-### Control
-- Runtime **Glass** button on profile  
-- **Hold 3 seconds** on profile button → open settings  
-- Presets: Clean · Default · Heavy · Performance  
-- **Quick Themes:** Midnight · Crystal · Smoke · Minimal  
-- **Focus Mode** for reading  
-- Device auto-profile on first launch  
+### Access
+- **Glass** button when injection succeeds  
+- **Hold Messages 3 seconds** → settings (not global, not profile)
+- **Force Show Glass Button** + floating fallback if UI reloads
+- Remembers last button position
+- Active Nav / Tab / Buttons / Cards styling
+- Optional auto screen profiles  
+- Diagnostics · Re-detect · Safe Mode  
 
 ### Reliability
-- Multi-strategy injection (stack + button-row + class hints)  
-- Soft retries — never permanently gives up  
-- Host re-validation  
-- Safe Mode · Diagnostics · Re-detect UI  
+- Instagram-first scan + generic fallback  
+- Last-good-host memory for faster reattach  
+- Soft retries (no permanent give-up)  
+- Unsupported-app warning when generic mode fails  
 
-### For developers
-- **Public API v31** — presets, themes, live tint, focus, config snapshot, import/export  
-- `GlassAPIStateDidChange` notification  
+### Developers
+- **Public API v36** — configuration, themes, focus, live tint, diagnostics JSON, host summary, injection reset  
 
 ---
 
@@ -83,26 +79,11 @@ Not another blur overlay. A **full glass engine** — material, specular, noise,
 
 1. Open [Releases](../../releases)  
 2. Download `GlossyGlass.dylib`  
-3. Inject with your sideloading app  
-
-**Works with:** Ksign · Esign · Scarlet · Feather · and most dylib injectors  
+3. Inject with Ksign, Esign, Scarlet, Feather, or any compatible dylib injector  
 
 ---
 
-## Settings map
-
-| Section | What you get |
-|---------|----------------|
-| **Quick Themes** | Midnight · Crystal · Smoke · Minimal |
-| **Presets** | Clean · Default · Heavy · Performance |
-| **Appearance** | Style · Intensity · Light/Dark · Opacity |
-| **Effects** | Blur · Vibrancy · Noise · Bloom · Edge |
-| **Advanced** | Radius · Saturation · Dimming · Springs |
-| **System** | Enable · Lightweight · Focus · Haptics · Safe Mode · Hide button |
-
----
-
-## Public API (v31)
+## Public API (v36)
 
 ```swift
 let api = GlossyGlassAPI.shared
@@ -112,33 +93,29 @@ api.applyPreset("Heavy")
 api.applyQuickTheme("Midnight")
 api.setFocusMode(true)
 api.setLiveTint(.systemBlue)
-api.clearLiveTint()
-
-api.setStyle("Clear")
-api.setIntensity(0.8)
-api.setOpacity(0.9)
 
 api.presentSettings()
-api.presentDiagnostics()
 api.forceRedetect()
+api.resetInjectionState()
 
-let json = api.exportSettingsJSON()
-api.importSettingsJSON(json ?? "{}")
+api.isInstagramHost()
+api.hostAppSummary()
+print(api.diagnosticsJSON())
 
-api.applyScreenProfile(.messages)
+api.exportSettingsJSON()
+api.importSettingsJSON(json)
 ```
 
 ---
 
-## Notes
+## Version
 
-- Version **3.1** (hotfix)  
-- No build required — grab the dylib from Releases  
-- First launch applies a device-based preset; change anything after  
+**3.6** (mini update)  
+Recommended: **iOS 17 – 18.x** · Also runs on **iOS 16**
 
 ---
 
 <p align="center">
   <b>Made by Killswitch</b><br>
-  <a href="https://discord.gg/Sxtn7SjDvu">Join the Discord</a>
+  <a href="https://discord.gg/Sxtn7SjDvu">discord.gg/Sxtn7SjDvu</a>
 </p>
