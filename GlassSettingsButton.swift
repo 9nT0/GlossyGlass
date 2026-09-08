@@ -228,7 +228,7 @@ private class GlassSettingsViewController: UIViewController {
         // MARK: Advanced
         stack.addArrangedSubview(makeSectionHeader(title: "Advanced", icon: "gearshape"))
         let advancedCard = makeCard()
-        advancedCard.addArrangedSubview(makeSliderRow(title: "Corner Radius", subtitle: "0 – 40 pt", value: Float(prefs.cornerRadius / 40.0)) { [weak self] v in
+        advancedCard.addArrangedSubview(makeSliderRow(title: "Corner Radius", subtitle: "0 – 40 pt", value: Float(prefs.cornerRadius / 40.0), displayAsPoints: 40) { [weak self] v in
             self?.prefs.cornerRadius = CGFloat(v) * 40.0
         })
         advancedCard.addArrangedSubview(makeDivider())
@@ -311,7 +311,7 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(redetectBtn)
 
         let footer = UILabel()
-        footer.text = "Hold anywhere 3s to open settings\nGlossyGlass · Killswitch · v3.1"
+        footer.text = "Hold Messages 3s to open settings\nGlossyGlass · Killswitch · v3.6"
         footer.font = .systemFont(ofSize: 11, weight: .medium)
         footer.numberOfLines = 2
         footer.textColor = .tertiaryLabel
@@ -422,7 +422,7 @@ private class GlassSettingsViewController: UIViewController {
         return container
     }
 
-    private func makeSliderRow(title: String, subtitle: String, value: Float, onChange: @escaping (Float) -> Void) -> UIView {
+    private func makeSliderRow(title: String, subtitle: String, value: Float, displayAsPoints: Float? = nil, onChange: @escaping (Float) -> Void) -> UIView {
         let container = UIStackView()
         container.axis = .vertical
         container.spacing = 6
@@ -435,7 +435,11 @@ private class GlassSettingsViewController: UIViewController {
         titleLabel.text = title
         titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
         let valueLabel = UILabel()
-        valueLabel.text = "\(Int(value * 100))%"
+        if let pts = displayAsPoints {
+            valueLabel.text = "\(Int(value * pts))pt"
+        } else {
+            valueLabel.text = "\(Int(value * 100))%"
+        }
         valueLabel.font = .systemFont(ofSize: 13, weight: .medium)
         valueLabel.textColor = .secondaryLabel
         top.addArrangedSubview(titleLabel)
@@ -454,7 +458,11 @@ private class GlassSettingsViewController: UIViewController {
         slider.tintColor = .systemPurple
         slider.addAction(UIAction { action in
             let v = (action.sender as! UISlider).value
-            valueLabel.text = "\(Int(v * 100))%"
+            if let pts = displayAsPoints {
+                valueLabel.text = "\(Int(v * pts))pt"
+            } else {
+                valueLabel.text = "\(Int(v * 100))%"
+            }
             onChange(v)
         }, for: .valueChanged)
 

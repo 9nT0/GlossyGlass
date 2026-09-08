@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "GlossyGlass",
     platforms: [
-        .iOS(.v17)
+        .iOS(.v16)
     ],
     products: [
         .library(
@@ -20,7 +20,7 @@ let package = Package(
             exclude: [
                 "Package.swift",
                 "README.md",
-                "RELEASE-v3.md",
+                "RELEASE-v3.6.md",
                 "build-dylib.yml",
                 "HOW-TO-UPLOAD.txt"
             ]

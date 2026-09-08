@@ -7,8 +7,8 @@ import UIKit
     @objc public static let shared = GlossyGlassAPI()
 
     /// API version — bump when breaking changes land
-    @objc public static let apiVersion: Int = 31
-    @objc public static let apiVersionString: String = "3.1.0"
+    @objc public static let apiVersion: Int = 36
+    @objc public static let apiVersionString: String = "3.6.0"
 
     // MARK: - Enable / Safe mode
 
@@ -118,6 +118,36 @@ import UIKit
     @objc public func presentSettings() { GlassSettingsPresenter.present() }
     @objc public func presentDiagnostics() { GlassDiagnostics.shared.present() }
     @objc public func forceRedetect() { GlassInjector.forceRedetect() }
+
+    @objc public func resetInjectionState() { GlassInjector.resetInjectionState() }
+
+    @objc public func hostAppSummary() -> String { GlassAppSupport.shared.summary() }
+
+    @objc public func isInstagramHost() -> Bool { GlassAppSupport.shared.isInstagram }
+
+    @objc public func diagnosticsJSON() -> String {
+        let d = GlassDiagnostics.shared
+        let p = GlassPreferences.shared
+        let dict: [String: Any] = [
+            "glassVersion": d.glassVersion,
+            "apiVersion": GlossyGlassAPI.apiVersion,
+            "ios": d.iosVersion,
+            "device": d.deviceModel,
+            "host": GlassAppSupport.shared.bundleId,
+            "isInstagram": GlassAppSupport.shared.isInstagram,
+            "attached": d.isAttached,
+            "score": d.lastScore,
+            "hostClass": d.lastHostClass,
+            "enabled": p.isEnabled,
+            "safeMode": p.safeMode,
+            "style": p.style,
+            "intensity": p.intensity,
+            "opacity": p.opacity
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]),
+              let s = String(data: data, encoding: .utf8) else { return "{}" }
+        return s
+    }
 
     // MARK: - Import / Export
 

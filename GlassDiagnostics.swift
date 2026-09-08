@@ -14,7 +14,7 @@ import UIKit
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     }
 
-    @objc public var glassVersion: String { "3.1.0" }
+    @objc public var glassVersion: String { "3.6.0" }
 
     @objc public var iosVersion: String { UIDevice.current.systemVersion }
     @objc public var deviceModel: String { UIDevice.current.model }
@@ -31,7 +31,7 @@ import UIKit
     @objc public func summary() -> String {
         let p = GlassPreferences.shared
         return """
-        GlossyGlass Diagnostics v3.1
+        GlossyGlass Diagnostics v3.6
         ----------------------------
         Glass: \(glassVersion)
         iOS: \(iosVersion)
