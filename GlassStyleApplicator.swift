@@ -38,11 +38,8 @@ import UIKit
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
 
-        for scene in UIApplication.shared.connectedScenes {
-            guard let ws = scene as? UIWindowScene else { continue }
-            for window in ws.windows where !window.isHidden {
-                walk(window, depth: 0)
-            }
+        for window in GlassAppSupport.allWindows() {
+            walk(window, depth: 0)
         }
     }
 

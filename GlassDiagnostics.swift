@@ -14,7 +14,7 @@ import UIKit
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     }
 
-    @objc public var glassVersion: String { "3.6.0" }
+    @objc public var glassVersion: String { "3.6.1" }
 
     @objc public var iosVersion: String { UIDevice.current.systemVersion }
     @objc public var deviceModel: String { UIDevice.current.model }
@@ -31,7 +31,7 @@ import UIKit
     @objc public func summary() -> String {
         let p = GlassPreferences.shared
         return """
-        GlossyGlass Diagnostics v3.6
+        GlossyGlass Diagnostics v3.6.1
         ----------------------------
         Glass: \(glassVersion)
         iOS: \(iosVersion)
@@ -66,12 +66,7 @@ import UIKit
         })
         alert.addAction(UIAlertAction(title: "OK", style: .cancel))
 
-        let root = presenter ?? UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }?.rootViewController
-        var top = root
-        while let p = top?.presentedViewController { top = p }
+        let top = presenter ?? GlassAppSupport.topViewController()
         top?.present(alert, animated: true)
     }
 }

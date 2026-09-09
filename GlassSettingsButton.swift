@@ -28,13 +28,7 @@ import UIKit
 @objc public class GlassSettingsPresenter: NSObject {
 
     @objc public static func present(from sourceView: UIView? = nil) {
-        guard let root = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow })?.rootViewController else { return }
-
-        var top = root
-        while let presented = top.presentedViewController { top = presented }
+        guard let top = GlassAppSupport.topViewController() else { return }
 
         let nav = UINavigationController(rootViewController: GlassSettingsViewController())
         nav.modalPresentationStyle = .pageSheet
@@ -312,7 +306,7 @@ private class GlassSettingsViewController: UIViewController {
         changeBtn.setTitle("Changelog", for: .normal)
         changeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         changeBtn.addAction(UIAction { [weak self] _ in
-            let alert = UIAlertController(title: "GlossyGlass 3.6", message: """
+            let alert = UIAlertController(title: "GlossyGlass 3.6.1", message: """
 • Messages 3s hold → settings
 • Force Show Glass button
 • Floating fallback if injection drops
@@ -320,6 +314,7 @@ private class GlassSettingsViewController: UIViewController {
 • Auto screen profiles (optional)
 • Nav / Tab / Buttons / Cards applicator
 • Smoother animations · stronger Reduce Motion
+• API v361 · Live Container / container support
 • API v36 · iOS 16+ (17–18 recommended)
 """, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -339,7 +334,7 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(redetectBtn)
 
         let footer = UILabel()
-        footer.text = "Hold Messages 3s to open settings\nGlossyGlass · Killswitch · v3.6"
+        footer.text = "Hold Messages 3s to open settings\nGlossyGlass · Killswitch · v3.6.1"
         footer.font = .systemFont(ofSize: 11, weight: .medium)
         footer.numberOfLines = 2
         footer.textColor = .tertiaryLabel

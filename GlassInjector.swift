@@ -26,13 +26,15 @@ import UIKit
                     object: nil,
                     queue: .main
                 ) { _ in
-                    injectionAttempts = max(0, injectionAttempts - 6)
+                    GlassAppSupport.shared.refreshDetection()
+                    injectionAttempts = max(0, injectionAttempts - 8)
                     attemptInjection()
                     installMessagesLongPress()
                 }
 
                 revalidateTimer?.invalidate()
-                revalidateTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+                let interval: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 1.8 : 2.5
+                revalidateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
                     revalidateAttachment()
                     installMessagesLongPress()
                 }
@@ -40,10 +42,17 @@ import UIKit
                 GlassDeviceProfiler.applyIfNeeded()
             }
 
-            // Faster early attempts for IG
-            let delays: [TimeInterval] = GlassAppSupport.shared.isInstagram
-                ? [0.2, 0.5, 0.9, 1.4, 2.0, 3.0, 4.5, 6.5, 9.0, 12.0, 18.0, 25.0]
-                : [0.5, 1.2, 2.5, 4.0, 7.0, 11.0, 16.0, 24.0]
+            GlassAppSupport.shared.refreshDetection()
+
+            // Dense schedule for containers + IG guest
+            let delays: [TimeInterval]
+            if GlassAppSupport.shared.isContainerEnvironment {
+                delays = [0.15, 0.4, 0.7, 1.0, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5, 10.0, 14.0, 20.0, 30.0, 45.0]
+            } else if GlassAppSupport.shared.isInstagram {
+                delays = [0.2, 0.5, 0.9, 1.4, 2.0, 3.0, 4.5, 6.5, 9.0, 12.0, 18.0, 25.0]
+            } else {
+                delays = [0.5, 1.2, 2.5, 4.0, 7.0, 11.0, 16.0, 24.0]
+            }
 
             for delay in delays {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -54,7 +63,7 @@ import UIKit
 
             attemptInjection()
             installMessagesLongPress()
-            GlassPreferences.shared.log("Injector v3.6 host=\(GlassAppSupport.shared.bundleId)")
+            GlassPreferences.shared.log("Injector v3.6.1 host=\(GlassAppSupport.shared.bundleId)")
         }
     }
 
@@ -80,11 +89,8 @@ import UIKit
     // MARK: - Messages-only 3s hold
 
     private static func installMessagesLongPress() {
-        for scene in UIApplication.shared.connectedScenes {
-            guard let ws = scene as? UIWindowScene else { continue }
-            for window in ws.windows where !window.isHidden {
-                attachMessagesPress(in: window, depth: 0)
-            }
+        for window in GlassAppSupport.allWindows() {
+            attachMessagesPress(in: window, depth: 0)
         }
     }
 
@@ -92,23 +98,44 @@ import UIKit
         guard depth < 18 else { return }
         let name = NSStringFromClass(type(of: view)).lowercased()
 
-        // Messages / Direct / Inbox targets only (NOT profile, NOT global)
+        // Direct / Messages targets only (NOT profile, NOT global)
         let isMessages =
             name.contains("direct") ||
             name.contains("message") ||
             name.contains("inbox") ||
             name.contains("messenger") ||
             name.contains("dmtab") ||
-            name.contains("chat")
+            name.contains("igdirect") ||
+            name.contains("chatlist") ||
+            name.contains("threadlist")
 
-        // Tab bar item that looks like messages (accessibility label)
         var labelHit = false
-        if let lab = view.accessibilityLabel?.lowercased() {
-            labelHit = lab.contains("message") || lab.contains("direct") || lab.contains("inbox")
+        let labels = [
+            view.accessibilityLabel,
+            view.accessibilityHint,
+            (view as? UIButton)?.title(for: .normal),
+            (view as? UIButton)?.currentTitle
+        ].compactMap { $0?.lowercased() }
+        for lab in labels {
+            if lab.contains("message") || lab.contains("direct") || lab.contains("inbox")
+                || lab.contains("dm") || lab.contains("chat") {
+                labelHit = true
+                break
+            }
+        }
+        // Tab bar item image-only: check parent tab bar selected accessibility
+        if let item = view as? UIControl, let tab = view.superview as? UITabBar {
+            for it in tab.items ?? [] {
+                let t = (it.title ?? it.accessibilityLabel ?? "").lowercased()
+                if t.contains("message") || t.contains("direct") || t.contains("inbox") {
+                    // Prefer controls near this item — still allow labelHit via item
+                    labelHit = labelHit || (it.tag == item.tag)
+                }
+            }
         }
 
-        let isControl = view is UIControl || view is UIButton
-        if (isMessages || labelHit) && isControl {
+        let isControl = view is UIControl || view is UIButton || view.gestureRecognizers?.isEmpty == false
+        if (isMessages || labelHit) && (isControl || view.isUserInteractionEnabled) {
             let exists = view.gestureRecognizers?.contains { $0 is GlassOpenSettingsLongPress } ?? false
             if !exists {
                 let g = GlassOpenSettingsLongPress()
@@ -201,13 +228,10 @@ import UIKit
 
         var best: (view: UIView, score: Int, kind: String)?
         var candidateCount = 0
-        let igBoost = GlassAppSupport.shared.isInstagram
+        let igBoost = GlassAppSupport.shared.isInstagram || GlassAppSupport.shared.isContainerEnvironment
 
-        for scene in UIApplication.shared.connectedScenes {
-            guard let windowScene = scene as? UIWindowScene else { continue }
-            for window in windowScene.windows where !window.isHidden {
-                scan(window, depth: 0, best: &best, count: &candidateCount, igBoost: igBoost)
-            }
+        for window in GlassAppSupport.allWindows() {
+            scan(window, depth: 0, best: &best, count: &candidateCount, igBoost: igBoost)
         }
 
         guard let winner = best, winner.score >= (igBoost ? 32 : 38) else {
@@ -244,7 +268,13 @@ import UIKit
             }
             let h: CGFloat = heights.isEmpty ? 32 : heights.reduce(0, +) / CGFloat(heights.count)
             btn.heightAnchor.constraint(equalToConstant: h).isActive = true
-            stack.addArrangedSubview(btn)
+            // Prefer 5th slot (index 4) — not 6th
+            let targetIndex = 4
+            if stack.arrangedSubviews.count >= targetIndex {
+                stack.insertArrangedSubview(btn, at: min(targetIndex, stack.arrangedSubviews.count))
+            } else {
+                stack.addArrangedSubview(btn)
+            }
         } else {
             host.addSubview(btn)
             NSLayoutConstraint.activate([
@@ -336,6 +366,8 @@ import UIKit
         }
         guard controls.count >= 2, controls.count <= 5 else { return 0 }
         var score = 25 + min(controls.count, 4) * 8
+        // Prefer bars that already have 3–4 items so Glass becomes the 5th
+        if controls.count == 3 || controls.count == 4 { score += 18 }
         if stack.arrangedSubviews.count <= 5 { score += 8 }
         let heights = controls.map { $0.bounds.height }.filter { $0 > 0 }
         if heights.count >= 2 {
@@ -378,10 +410,8 @@ import UIKit
             return
         }
         removeFloatingFallback()
-        guard let window = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow }) else { return }
+        let windows = GlassAppSupport.allWindows()
+        guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else { return }
 
         let btn = GlassSettingsButton()
         btn.translatesAutoresizingMaskIntoConstraints = false
@@ -423,11 +453,8 @@ import UIKit
     }
 
     private static func removeExistingButtons() {
-        for scene in UIApplication.shared.connectedScenes {
-            guard let windowScene = scene as? UIWindowScene else { continue }
-            for window in windowScene.windows {
-                removeButtons(in: window)
-            }
+        for window in GlassAppSupport.allWindows() {
+            removeButtons(in: window)
         }
     }
 

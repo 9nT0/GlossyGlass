@@ -4,8 +4,8 @@ import UIKit
 @objc public class GlossyGlassAPI: NSObject {
 
     @objc public static let shared = GlossyGlassAPI()
-    @objc public static let apiVersion: Int = 36
-    @objc public static let apiVersionString: String = "3.6.0"
+    @objc public static let apiVersion: Int = 361
+    @objc public static let apiVersionString: String = "3.6.1"
 
     // MARK: - Core enable
 
@@ -205,6 +205,53 @@ import UIKit
 
     @objc public func hostAppSummary() -> String { GlassAppSupport.shared.summary() }
     @objc public func isInstagramHost() -> Bool { GlassAppSupport.shared.isInstagram }
+
+    // MARK: - Signing / container
+
+    @objc public func isContainerEnvironment() -> Bool { GlassAppSupport.shared.isContainerEnvironment }
+
+    @objc public func refreshHostDetection() { GlassAppSupport.shared.refreshDetection() }
+
+    @objc public func signerName() -> String { GlassAppSupport.shared.signerName }
+
+    @objc public func signerKindRaw() -> Int { GlassAppSupport.shared.signerKind.rawValue }
+
+    @objc public func isLiveContainer() -> Bool {
+        GlassAppSupport.shared.signerKind == .liveContainer
+    }
+
+    @objc public func isKnownSigner() -> Bool {
+        GlassAppSupport.shared.signerKind != .unknown
+    }
+
+    /// Soft guidance string for UI / other tweaks
+    @objc public func containerCompatibilityNote() -> String {
+        let s = GlassAppSupport.shared
+        if s.isInstagram && s.isContainerEnvironment {
+            return "Instagram detected inside \(s.signerName). Force Show recommended if the bar is missing."
+        }
+        if s.isContainerEnvironment {
+            return "Container: \(s.signerName). Guest detection may lag — open the app fully."
+        }
+        if s.isInstagram {
+            return "Native Instagram host."
+        }
+        return "Generic host (\(s.signerName))."
+    }
+
+    /// Enable container-friendly defaults (force show + denser behavior flags)
+    @objc public func applyContainerFriendlyDefaults() {
+        let p = GlassPreferences.shared
+        p.forceShowGlassButton = true
+        p.hideGlassButton = false
+        p.lightweightMode = (GlassDeviceProfiler.currentTierName() == "low")
+        GlassInjector.forceRedetect()
+        post()
+    }
+
+
+
+
     @objc public func hostBundleId() -> String { GlassAppSupport.shared.bundleId }
     @objc public func deviceTier() -> String { GlassDeviceProfiler.currentTierName() }
     @objc public func diagnosticsSummary() -> String { GlassDiagnostics.shared.summary() }
@@ -219,6 +266,7 @@ import UIKit
             "device": d.deviceModel,
             "host": GlassAppSupport.shared.bundleId,
             "isInstagram": GlassAppSupport.shared.isInstagram,
+            "container": GlassAppSupport.shared.isContainerEnvironment,
             "attached": d.isAttached,
             "score": d.lastScore,
             "hostClass": d.lastHostClass,
