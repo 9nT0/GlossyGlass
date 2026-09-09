@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.6-blueviolet?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/version-3.6.1-blueviolet?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/iOS-17%20—%2018.x%20recommended-black?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/iOS%2016-supported-lightgrey?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/API-v36-purple?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/API-v361-purple?style=for-the-badge"/>
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
 
 ## Overview
 
-GlossyGlass is a **dylib glass engine** for sideloaded apps. It is optimized for **Instagram**, with a **generic fallback** for other UIKit apps.
+GlossyGlass is a **dylib glass engine** for sideloaded apps. Optimized for **Instagram**, including when Instagram runs inside **Live Container** / other app containers, with a generic fallback for other UIKit hosts.
 
 | Primary | Secondary |
 |---------|-----------|
@@ -108,9 +108,23 @@ api.importSettingsJSON(json)
 
 ---
 
+
+---
+
+## Live Container
+
+1. Import `GlossyGlass.dylib` into the **app-specific** tweak folder for Instagram (Private app if needed)
+2. Assign that folder to the Instagram guest
+3. Enable **TweakLoader** / Ellekit injection for that app
+4. Open Instagram fully and wait **15–30 seconds** on first launch
+5. If the Glass button is missing → enable **Force Show Glass Button** (auto-enabled after failed attaches in containers)
+6. Diagnostics → **Copy** and paste into Discord if you need support
+
+Container mode uses a UI ready-gate, denser retries, and stronger Instagram guest detection.
+
 ## Version
 
-**3.6** (mini update)  
+**3.6.1** (container compatibility)  
 Recommended: **iOS 17 – 18.x** · Also runs on **iOS 16**
 
 ---
