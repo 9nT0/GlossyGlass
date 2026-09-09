@@ -2,48 +2,66 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
-#import <dlfcn.h>
 
-/// Deep UIKit + Instagram lifecycle hooks for GlossyGlass.
-/// Swizzles appear/layout so glass materials re-apply as IG builds screens.
-
-@class GlassStyleApplicator;
-@class GlassInjector;
-@class GlassAppSupport;
-@class GlassPreferences;
-@class GlassLoader;
-
-@interface GlassStyleApplicator : NSObject
-+ (void)applyAll;
-+ (void)applyToView:(UIView *)view;
-+ (void)applyToViewController:(UIViewController *)vc;
-@end
-
-@interface GlassInjector : NSObject
-+ (void)start;
-+ (void)attemptInjection;
-+ (void)forceRedetect;
-@end
+/// Deep UIKit + Instagram hooks — safe swizzling only.
+/// NEVER exchange a method that only exists on a superclass (that corrupts UIView globally).
 
 static BOOL GG_HooksInstalled = NO;
-static void GG_InstallHooks(void);
 
-#pragma mark - Swizzle helper
+#pragma mark - Safe swizzle
 
-static void GG_SwizzleInstance(Class cls, SEL original, SEL replacement) {
-    if (!cls) return;
-    Method m1 = class_getInstanceMethod(cls, original);
-    Method m2 = class_getInstanceMethod(cls, replacement);
-    if (!m1 || !m2) return;
-    method_exchangeImplementations(m1, m2);
+/// Returns YES if `cls` has its own implementation of `sel` (not inherited).
+static BOOL GG_ClassDirectlyImplements(Class cls, SEL sel) {
+    unsigned int count = 0;
+    Method *methods = class_copyMethodList(cls, &count);
+    BOOL found = NO;
+    for (unsigned int i = 0; i < count; i++) {
+        if (method_getName(methods[i]) == sel) {
+            found = YES;
+            break;
+        }
+    }
+    if (methods) free(methods);
+    return found;
 }
 
-static void GG_AddAndSwizzle(Class cls, SEL original, SEL replacement, IMP imp, const char *types) {
-    if (!cls || !imp) return;
-    class_addMethod(cls, replacement, imp, types);
-    Method m1 = class_getInstanceMethod(cls, original);
-    Method m2 = class_getInstanceMethod(cls, replacement);
-    if (m1 && m2) method_exchangeImplementations(m1, m2);
+/// Safe instance swizzle:
+/// - If the class already implements `original`, exchange with replacement.
+/// - If not, add `original` pointing at replacement IMP, and store original superclass IMP under replacement.
+/// Never mutates a superclass Method structure.
+static void GG_SafeSwizzleInstance(Class cls, SEL original, SEL replacement) {
+    if (!cls) return;
+    Method replMethod = class_getInstanceMethod(cls, replacement);
+    if (!replMethod) return;
+
+    IMP replIMP = method_getImplementation(replMethod);
+    const char *types = method_getTypeEncoding(replMethod);
+
+    if (GG_ClassDirectlyImplements(cls, original)) {
+        Method origMethod = class_getInstanceMethod(cls, original);
+        if (origMethod) {
+            method_exchangeImplementations(origMethod, replMethod);
+        }
+        return;
+    }
+
+    // Class does not implement original — inherit from super. Add our method as `original`
+    // without touching the superclass Method.
+    Method inherited = class_getInstanceMethod(cls, original);
+    IMP inheritedIMP = inherited ? method_getImplementation(inherited) : NULL;
+    if (!inheritedIMP) return;
+
+    // Add original selector with our replacement body
+    if (!class_addMethod(cls, original, replIMP, types)) {
+        // Race / already added
+        Method origMethod = class_getInstanceMethod(cls, original);
+        if (origMethod && GG_ClassDirectlyImplements(cls, original)) {
+            method_exchangeImplementations(origMethod, replMethod);
+        }
+        return;
+    }
+    // Point replacement selector at the inherited implementation so [self replacement] calls super path
+    class_replaceMethod(cls, replacement, inheritedIMP, types);
 }
 
 static void GG_SafeApply(void) {
@@ -76,11 +94,30 @@ static void GG_SafeInject(void) {
     } @catch (__unused NSException *e) {}
 }
 
-#pragma mark - UIViewController hooks
+static void GG_ApplyNavBar(UINavigationBar *bar) {
+    if (!bar) return;
+    @try {
+        Class helper = NSClassFromString(@"GlassNavigationHelper");
+        if (helper && [helper respondsToSelector:@selector(applyNavigationBarStyle:)]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyNavigationBarStyle:), bar);
+        }
+    } @catch (__unused NSException *e) {}
+}
+
+static void GG_ApplyTabBar(UITabBar *bar) {
+    if (!bar) return;
+    @try {
+        Class helper = NSClassFromString(@"GlassNavigationHelper");
+        if (helper && [helper respondsToSelector:@selector(applyTabBarStyle:)]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyTabBarStyle:), bar);
+        }
+    } @catch (__unused NSException *e) {}
+}
+
+#pragma mark - UIViewController
 
 @interface UIViewController (GlossyGlassHooks)
 - (void)gg_viewDidAppear:(BOOL)animated;
-- (void)gg_viewWillAppear:(BOOL)animated;
 - (void)gg_viewDidLayoutSubviews;
 @end
 
@@ -94,17 +131,11 @@ static void GG_SafeInject(void) {
     });
 }
 
-- (void)gg_viewWillAppear:(BOOL)animated {
-    [self gg_viewWillAppear:animated];
-    // Light touch — full apply on didAppear
-}
-
 - (void)gg_viewDidLayoutSubviews {
     [self gg_viewDidLayoutSubviews];
-    // Throttle via associated flag
     NSNumber *last = objc_getAssociatedObject(self, "gg_lastLayout");
     NSTimeInterval now = CFAbsoluteTimeGetCurrent();
-    if (last && (now - last.doubleValue) < 0.35) return;
+    if (last && (now - last.doubleValue) < 0.40) return;
     objc_setAssociatedObject(self, "gg_lastLayout", @(now), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     dispatch_async(dispatch_get_main_queue(), ^{
         GG_SafeApplyVC(self);
@@ -113,72 +144,32 @@ static void GG_SafeInject(void) {
 
 @end
 
-#pragma mark - UINavigationBar
+#pragma mark - UINavigationBar (layout only — no didMoveToWindow)
 
 @interface UINavigationBar (GlossyGlassHooks)
 - (void)gg_layoutSubviews;
-- (void)gg_didMoveToWindow;
 @end
 
 @implementation UINavigationBar (GlossyGlassHooks)
 
 - (void)gg_layoutSubviews {
     [self gg_layoutSubviews];
-    @try {
-        Class helper = NSClassFromString(@"GlassNavigationHelper");
-        if (helper && [helper respondsToSelector:@selector(applyNavigationBarStyle:)]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyNavigationBarStyle:), self);
-        }
-    } @catch (__unused NSException *e) {}
-}
-
-- (void)gg_didMoveToWindow {
-    [self gg_didMoveToWindow];
-    if (self.window) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            @try {
-                Class helper = NSClassFromString(@"GlassNavigationHelper");
-                if (helper && [helper respondsToSelector:@selector(applyNavigationBarStyle:)]) {
-                    ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyNavigationBarStyle:), self);
-                }
-            } @catch (__unused NSException *e) {}
-        });
-    }
+    GG_ApplyNavBar(self);
 }
 
 @end
 
-#pragma mark - UITabBar
+#pragma mark - UITabBar (layout only — no didMoveToWindow)
 
 @interface UITabBar (GlossyGlassHooks)
 - (void)gg_layoutSubviews;
-- (void)gg_didMoveToWindow;
 @end
 
 @implementation UITabBar (GlossyGlassHooks)
 
 - (void)gg_layoutSubviews {
     [self gg_layoutSubviews];
-    @try {
-        Class helper = NSClassFromString(@"GlassNavigationHelper");
-        if (helper && [helper respondsToSelector:@selector(applyTabBarStyle:)]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyTabBarStyle:), self);
-        }
-    } @catch (__unused NSException *e) {}
-}
-
-- (void)gg_didMoveToWindow {
-    [self gg_didMoveToWindow];
-    if (self.window) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            @try {
-                Class helper = NSClassFromString(@"GlassNavigationHelper");
-                if (helper && [helper respondsToSelector:@selector(applyTabBarStyle:)]) {
-                    ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyTabBarStyle:), self);
-                }
-            } @catch (__unused NSException *e) {}
-        });
-    }
+    GG_ApplyTabBar(self);
 }
 
 @end
@@ -187,21 +178,16 @@ static void GG_SafeInject(void) {
 
 @interface UIWindow (GlossyGlassHooks)
 - (void)gg_makeKeyAndVisible;
-- (void)gg_didAddSubview:(UIView *)subview;
 @end
 
 @implementation UIWindow (GlossyGlassHooks)
 
 - (void)gg_makeKeyAndVisible {
     [self gg_makeKeyAndVisible];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         GG_SafeApply();
         GG_SafeInject();
     });
-}
-
-- (void)gg_didAddSubview:(UIView *)subview {
-    [self gg_didAddSubview:subview];
 }
 
 @end
@@ -219,14 +205,7 @@ static void GG_SafeInject(void) {
     [self gg_pushViewController:vc animated:animated];
     dispatch_async(dispatch_get_main_queue(), ^{
         GG_SafeApplyVC(vc);
-        if (self.navigationBar) {
-            @try {
-                Class helper = NSClassFromString(@"GlassNavigationHelper");
-                if (helper && [helper respondsToSelector:@selector(applyNavigationBarStyle:)]) {
-                    ((void (*)(id, SEL, id))objc_msgSend)(helper, @selector(applyNavigationBarStyle:), self.navigationBar);
-                }
-            } @catch (__unused NSException *e) {}
-        }
+        GG_ApplyNavBar(self.navigationBar);
         GG_SafeInject();
     });
 }
@@ -242,20 +221,18 @@ static void GG_SafeInject(void) {
 
 @end
 
-#pragma mark - Instagram-specific class hooks
+#pragma mark - Instagram classes
 
 static void GG_HookIGClass(const char *name) {
     Class cls = NSClassFromString([NSString stringWithUTF8String:name]);
     if (!cls) return;
 
-    // Reuse UIViewController swizzles if it's a subclass — already covered.
-    // Also hook viewDidLoad if present for earlier glass.
     SEL orig = @selector(viewDidLoad);
-    SEL repl = NSSelectorFromString(@"gg_ig_viewDidLoad");
+    SEL repl = NSSelectorFromString([NSString stringWithFormat:@"gg_ig_viewDidLoad_%s", name]);
+
+    if (class_getInstanceMethod(cls, repl)) return; // already
     Method m = class_getInstanceMethod(cls, orig);
     if (!m) return;
-    // Only add if not already
-    if (class_getInstanceMethod(cls, repl)) return;
 
     IMP origIMP = method_getImplementation(m);
     const char *types = method_getTypeEncoding(m);
@@ -269,9 +246,17 @@ static void GG_HookIGClass(const char *name) {
             });
         }
     });
-    class_addMethod(cls, repl, newIMP, types);
-    Method m2 = class_getInstanceMethod(cls, repl);
-    if (m2) method_exchangeImplementations(m, m2);
+
+    // Prefer adding as a direct override without exchanging superclass Method objects
+    if (GG_ClassDirectlyImplements(cls, orig)) {
+        class_addMethod(cls, repl, newIMP, types);
+        Method m2 = class_getInstanceMethod(cls, repl);
+        Method m1 = class_getInstanceMethod(cls, orig);
+        if (m1 && m2) method_exchangeImplementations(m1, m2);
+    } else {
+        // Add viewDidLoad on this class pointing at our block; keep super via origIMP already captured
+        class_addMethod(cls, orig, newIMP, types);
+    }
     NSLog(@"[GlossyGlass] Hooked IG class %s", name);
 }
 
@@ -294,9 +279,7 @@ static void GG_HookAllIGClasses(void) {
         "IGMediaViewerViewController",
         "IGShoppingViewController",
         "IGSettingsViewController",
-        "IGAppDelegate",
         "IGScopedViewController",
-        "IGViewControllerWithFeedItem",
         NULL
     };
     for (int i = 0; names[i]; i++) {
@@ -310,49 +293,39 @@ static void GG_InstallHooks(void) {
     if (GG_HooksInstalled) return;
     GG_HooksInstalled = YES;
 
-    GG_SwizzleInstance([UIViewController class],
-                       @selector(viewDidAppear:),
-                       @selector(gg_viewDidAppear:));
-    GG_SwizzleInstance([UIViewController class],
-                       @selector(viewWillAppear:),
-                       @selector(gg_viewWillAppear:));
-    GG_SwizzleInstance([UIViewController class],
-                       @selector(viewDidLayoutSubviews),
-                       @selector(gg_viewDidLayoutSubviews));
+    // UIViewController — these are almost always overridden / safe with SafeSwizzle
+    GG_SafeSwizzleInstance([UIViewController class],
+                           @selector(viewDidAppear:),
+                           @selector(gg_viewDidAppear:));
+    GG_SafeSwizzleInstance([UIViewController class],
+                           @selector(viewDidLayoutSubviews),
+                           @selector(gg_viewDidLayoutSubviews));
 
-    GG_SwizzleInstance([UINavigationBar class],
-                       @selector(layoutSubviews),
-                       @selector(gg_layoutSubviews));
-    GG_SwizzleInstance([UINavigationBar class],
-                       @selector(didMoveToWindow),
-                       @selector(gg_didMoveToWindow));
+    // Bars — layoutSubviews only (UITabBar/UINavigationBar implement it). NO didMoveToWindow.
+    GG_SafeSwizzleInstance([UINavigationBar class],
+                           @selector(layoutSubviews),
+                           @selector(gg_layoutSubviews));
+    GG_SafeSwizzleInstance([UITabBar class],
+                           @selector(layoutSubviews),
+                           @selector(gg_layoutSubviews));
 
-    GG_SwizzleInstance([UITabBar class],
-                       @selector(layoutSubviews),
-                       @selector(gg_layoutSubviews));
-    GG_SwizzleInstance([UITabBar class],
-                       @selector(didMoveToWindow),
-                       @selector(gg_didMoveToWindow));
+    GG_SafeSwizzleInstance([UIWindow class],
+                           @selector(makeKeyAndVisible),
+                           @selector(gg_makeKeyAndVisible));
 
-    GG_SwizzleInstance([UIWindow class],
-                       @selector(makeKeyAndVisible),
-                       @selector(gg_makeKeyAndVisible));
-
-    GG_SwizzleInstance([UINavigationController class],
-                       @selector(pushViewController:animated:),
-                       @selector(gg_pushViewController:animated:));
-    GG_SwizzleInstance([UINavigationController class],
-                       @selector(popViewControllerAnimated:),
-                       @selector(gg_popViewControllerAnimated:));
+    GG_SafeSwizzleInstance([UINavigationController class],
+                           @selector(pushViewController:animated:),
+                           @selector(gg_pushViewController:animated:));
+    GG_SafeSwizzleInstance([UINavigationController class],
+                           @selector(popViewControllerAnimated:),
+                           @selector(gg_popViewControllerAnimated:));
 
     GG_HookAllIGClasses();
-
-    NSLog(@"[GlossyGlass] Deep hooks installed");
+    NSLog(@"[GlossyGlass] Deep hooks installed (safe)");
 }
 
 __attribute__((constructor))
 static void GG_HooksConstructor(void) {
-    // Slight delay so UIKit classes are up; also re-hook IG classes later (load late)
     dispatch_async(dispatch_get_main_queue(), ^{
         GG_InstallHooks();
     });
