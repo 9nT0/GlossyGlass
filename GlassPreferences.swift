@@ -129,7 +129,10 @@ import Foundation
     // MARK: - Core
 
     @objc public var isEnabled: Bool {
-        get { defaults.bool(forKey: Key.enabled.rawValue) }
+        get {
+            if defaults.object(forKey: Key.enabled.rawValue) == nil { return true }
+            return defaults.bool(forKey: Key.enabled.rawValue)
+        }
         set { defaults.set(newValue, forKey: Key.enabled.rawValue); notifyChange() }
     }
 
