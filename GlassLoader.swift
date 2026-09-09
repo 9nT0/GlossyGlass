@@ -100,12 +100,11 @@ import UIKit
 
 // MARK: - Image-load entry (closest to +load)
 
-@objc private class GlassLoadTrigger: NSObject {
-    @objc static let arm: Void = {
+private enum GlassLoadTrigger {
+    static let arm: Void = {
         DispatchQueue.main.async {
             _ = GlassLoader.shared
         }
-        // Also delayed for LC: Ellekit may load us before guest UIApplication
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             GlassLoader.kick(reason: "LoadTrigger+1s")
         }

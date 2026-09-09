@@ -1,5 +1,14 @@
 import UIKit
 import Darwin
+import MachO
+
+@_silgen_name("_dyld_image_count")
+private func _gg_dyld_image_count() -> UInt32
+
+@_silgen_name("_dyld_get_image_name")
+private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CChar>?
+
+
 
 @objc public enum GlassHostKind: Int {
     case instagram = 0
@@ -143,9 +152,9 @@ import Darwin
             if NSClassFromString(name) != nil { return true }
         }
 
-        let imageCount = _dyld_image_count()
+        let imageCount = _gg_dyld_image_count()
         for i in 0..<imageCount {
-            if let cname = _dyld_get_image_name(i) {
+            if let cname = _gg_dyld_get_image_name(UInt32(i)) {
                 let path = String(cString: cname).lowercased()
                 if path.contains("instagram") || path.contains("burbn") { return true }
             }
