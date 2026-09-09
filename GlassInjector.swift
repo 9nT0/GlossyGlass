@@ -189,88 +189,70 @@ import UIKit
     @objc public static func attemptInjection() {
         let prefs = GlassPreferences.shared
 
-        // Ensure defaults applied
         if prefs.safeMode {
             removeExistingButtons()
             attachedButton = nil
             attachedHost = nil
             GlassDiagnostics.shared.recordInjection(score: 0, host: "none", candidates: 0, attached: false, note: "Safe mode")
-            NSLog("[GlossyGlass] inject skip: safe mode")
             return
         }
-
-        // isEnabled: treat missing key as enabled
-        let enabled = prefs.isEnabled
-        if !enabled {
-            NSLog("[GlossyGlass] inject skip: disabled")
-            return
-        }
+        guard prefs.isEnabled else { return }
 
         if prefs.hideGlassButton && !prefs.forceShowGlassButton {
             removeExistingButtons()
+            removeFloatingFallback()
             attachedButton = nil
-            GlassDiagnostics.shared.recordInjection(score: 0, host: "none", candidates: 0, attached: false, note: "Hidden")
+            attachedHost = nil
             return
         }
 
-        if let btn = attachedButton, btn.superview != nil {
-            return
-        }
+        if let btn = attachedButton, btn.superview != nil { return }
 
-        injectionAttempts += 1
-        GlassAppSupport.shared.refreshDetection()
-
-        let windows = GlassAppSupport.allWindows()
-        NSLog("[GlossyGlass] attempt #%d win=%d ig=%d container=%d force=%d",
-              injectionAttempts, windows.count,
-              GlassAppSupport.shared.isInstagram ? 1 : 0,
-              GlassAppSupport.shared.isContainerEnvironment ? 1 : 0,
-              prefs.forceShowGlassButton ? 1 : 0)
-
-        // Force show path
+        // Force show: permanent floating fallback, ignore detection
         if prefs.forceShowGlassButton {
             ensureFloatingFallback()
             return
         }
 
-        // Last good host
-        if let host = lastGoodHost, host.window != nil || host.superview != nil {
-            if let stack = host as? UIStackView, !stack.arrangedSubviews.contains(where: { $0 is GlassSettingsButton }) {
+        // Try last good host first (fast path)
+        if let host = lastGoodHost, host.superview != nil {
+            if let stack = host as? UIStackView,
+               !stack.arrangedSubviews.contains(where: { $0 is GlassSettingsButton }) {
                 inject(into: stack, kind: "LastGood", score: 90)
                 return
             }
         }
 
-        // Scan
+        injectionAttempts += 1
+        if injectionAttempts > 40 && injectionAttempts % 6 != 0 { return }
+
         var best: (view: UIView, score: Int, kind: String)?
-        var candidates = 0
-        let igBoost = GlassAppSupport.shared.isInstagram
-        for window in windows {
-            scan(window, depth: 0, best: &best, count: &candidates, igBoost: igBoost)
+        var candidateCount = 0
+        let igBoost = GlassAppSupport.shared.isInstagram || GlassAppSupport.shared.isContainerEnvironment
+
+        for window in GlassAppSupport.allWindows() {
+            scan(window, depth: 0, best: &best, count: &candidateCount, igBoost: igBoost)
         }
 
-        // Also try locator
-        if let loc = GlassLocator.shared.findBestButtonHost() {
-            candidates += 1
-            if best == nil || loc.score > best!.score {
-                best = (loc.view, loc.score, "Locator")
-            }
-        }
-
-        let threshold = igBoost ? 18 : 22
-        guard let winner = best, winner.score >= threshold else {
-            let sc = best?.score ?? 0
-            NSLog("[GlossyGlass] scan fail score=%d candidates=%d threshold=%d", sc, candidates, threshold)
+        guard let winner = best, winner.score >= (igBoost ? 28 : 34) else {
             GlassDiagnostics.shared.recordInjection(
-                score: sc, host: best?.kind ?? "none", candidates: candidates, attached: false, note: "Below threshold"
+                score: best?.score ?? 0,
+                host: best?.kind ?? "none",
+                candidates: candidateCount,
+                attached: false,
+                note: "No host (attempt \(injectionAttempts))"
             )
-            // Fast floating: attempt 2+ in container, 3+ otherwise
-            let floatAt = GlassAppSupport.shared.isContainerEnvironment ? 2 : 3
-            if injectionAttempts >= floatAt {
-                if !prefs.forceShowGlassButton {
-                    // Soft-enable force for this session without writing if possible
-                    prefs.forceShowGlassButton = true
+            if injectionAttempts >= 14 {
+                GlassAppSupport.shared.warnIfUnsupportedIfNeeded()
+            }
+            // Container: auto Force Show after sustained failure (~15s of tries)
+            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 5 {
+                if !GlassPreferences.shared.forceShowGlassButton {
+                    GlassPreferences.shared.forceShowGlassButton = true
+                    NSLog("[GlossyGlass] Container auto Force Show enabled")
                 }
+                ensureFloatingFallback()
+            } else if injectionAttempts >= 6 {
                 ensureFloatingFallback()
             }
             return
@@ -438,46 +420,32 @@ import UIKit
     private static func ensureFloatingFallback() {
         if let f = floatingButton, f.superview != nil {
             attachedButton = f
-            GlassDiagnostics.shared.recordInjection(score: 50, host: "FloatingReuse", candidates: 0, attached: true, note: "Floating reuse")
             return
         }
         removeFloatingFallback()
-
         let windows = GlassAppSupport.allWindows()
-        let host: UIView? =
-            windows.first(where: { $0.isKeyWindow })
-            ?? windows.first
-            ?? GlassAppSupport.topViewController()?.view
-
-        guard let container = host else {
-            NSLog("[GlossyGlass] floating: no window yet")
-            GlassDiagnostics.shared.recordInjection(score: 0, host: "Floating", candidates: 0, attached: false, note: "No window")
-            return
-        }
+        guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else { return }
 
         let btn = GlassSettingsButton()
         btn.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(btn)
-        // Bring above host content
-        container.bringSubviewToFront(btn)
+        window.addSubview(btn)
 
-        let topC: CGFloat = 56
-        let trailC: CGFloat = 16
-        let topAnchor: NSLayoutYAxisAnchor
-        let trailAnchor: NSLayoutXAxisAnchor
-        if let w = container as? UIWindow {
-            topAnchor = w.safeAreaLayoutGuide.topAnchor
-            trailAnchor = w.safeAreaLayoutGuide.trailingAnchor
+        let saved = GlassPreferences.shared.lastButtonPoint
+        let topC: CGFloat
+        let trailC: CGFloat
+        if saved.x > 0 && saved.y > 0 {
+            topC = min(max(48, saved.y - 40), 120)
+            trailC = 16
         } else {
-            topAnchor = container.safeAreaLayoutGuide.topAnchor
-            trailAnchor = container.trailingAnchor
+            topC = 56
+            trailC = 16
         }
 
         NSLayoutConstraint.activate([
-            btn.topAnchor.constraint(equalTo: topAnchor, constant: topC),
-            btn.trailingAnchor.constraint(equalTo: trailAnchor, constant: -trailC),
+            btn.topAnchor.constraint(equalTo: window.safeAreaLayoutGuide.topAnchor, constant: topC),
+            btn.trailingAnchor.constraint(equalTo: window.safeAreaLayoutGuide.trailingAnchor, constant: -trailC),
             btn.heightAnchor.constraint(equalToConstant: 32),
-            btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 64)
+            btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 56)
         ])
 
         let hold = GlassOpenSettingsLongPress()
@@ -489,7 +457,7 @@ import UIKit
         GlassDiagnostics.shared.recordInjection(
             score: 50, host: "FloatingFallback", candidates: 0, attached: true, note: "Floating fallback"
         )
-        NSLog("[GlossyGlass] Floating Glass button attached")
+        GlassPreferences.shared.log("Floating Glass button shown")
     }
 
     private static func removeFloatingFallback() {
@@ -530,14 +498,11 @@ private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
     }
 
     @objc private func handle(_ g: UILongPressGestureRecognizer) {
-        guard let view = g.view else { return }
-        if g.state == .began {
-            GlassAnimations.longPressLift(view)
-            if GlassPreferences.shared.hapticsEnabled {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            }
-            GlassSettingsPresenter.present()
+        guard g.state == .began else { return }
+        if GlassPreferences.shared.hapticsEnabled {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
+        GlassSettingsPresenter.present()
     }
 }
 

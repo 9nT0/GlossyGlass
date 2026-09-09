@@ -84,8 +84,8 @@ import Foundation
             "GG_LightweightMode"            : false,
             Key.styleNavigationBar.rawValue : true,
             Key.styleTabBar.rawValue        : true,
-            Key.styleButtons.rawValue       : false,
-            Key.styleCards.rawValue         : false,
+            Key.styleButtons.rawValue       : true,
+            Key.styleCards.rawValue         : true,
             Key.debugLogging.rawValue       : false,
             Key.preset.rawValue             : "Default",
             Key.springResponse.rawValue     : 0.28,
@@ -129,10 +129,7 @@ import Foundation
     // MARK: - Core
 
     @objc public var isEnabled: Bool {
-        get {
-            if defaults.object(forKey: Key.enabled.rawValue) == nil { return true }
-            return defaults.bool(forKey: Key.enabled.rawValue)
-        }
+        get { defaults.bool(forKey: Key.enabled.rawValue) }
         set { defaults.set(newValue, forKey: Key.enabled.rawValue); notifyChange() }
     }
 
