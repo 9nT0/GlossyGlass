@@ -113,7 +113,7 @@ import Foundation
                 darkIntensity = CGFloat(old) * 0.85
             }
         }
-        if version < 3 {
+        if version < 4 {
             // v2 → v3: ensure new keys exist with sane defaults
             if defaults.object(forKey: Key.edgeHighlightEnabled.rawValue) == nil {
                 edgeHighlightEnabled = true

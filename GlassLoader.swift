@@ -23,7 +23,7 @@ import UIKit
         if !GlassLoader.bootstrapOnce {
             GlassLoader.bootstrapOnce = true
             armObserversIfNeeded()
-            NSLog("[GlossyGlass] Loader v3.6.1 bootstrap (container-aware)")
+            NSLog("[GlossyGlass] Loader v4.0 bootstrap (container-aware)")
             logEnvironment(tag: "bootstrap")
         }
 

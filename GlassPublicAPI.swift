@@ -4,8 +4,8 @@ import UIKit
 @objc public class GlossyGlassAPI: NSObject {
 
     @objc public static let shared = GlossyGlassAPI()
-    @objc public static let apiVersion: Int = 361
-    @objc public static let apiVersionString: String = "3.6.1"
+    @objc public static let apiVersion: Int = 40
+    @objc public static let apiVersionString: String = "4.0.0"
 
     // MARK: - Core enable
 
@@ -187,6 +187,12 @@ import UIKit
     // MARK: - UI
 
     @objc public func presentSettings() { GlassSettingsPresenter.present() }
+
+    @objc public func presentWelcome() { GlassWelcome.present(force: true) }
+
+    @objc public func applyLiquidGlassLook() { GlassThemeEngine.shared.applyLiquidDefault() }
+
+    @objc public func applyLiquidHeavyLook() { GlassThemeEngine.shared.applyLiquidHeavy() }
     @objc public func presentDiagnostics() { GlassDiagnostics.shared.present() }
 
     // MARK: - Persistence

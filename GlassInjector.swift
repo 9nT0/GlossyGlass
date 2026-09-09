@@ -63,7 +63,7 @@ import UIKit
 
             attemptInjection()
             installMessagesLongPress()
-            GlassPreferences.shared.log("Injector v3.6.1 host=\(GlassAppSupport.shared.bundleId)")
+            GlassPreferences.shared.log("Injector v4.0-final host=\(GlassAppSupport.shared.bundleId)")
         }
     }
 
@@ -234,7 +234,7 @@ import UIKit
             scan(window, depth: 0, best: &best, count: &candidateCount, igBoost: igBoost)
         }
 
-        guard let winner = best, winner.score >= (igBoost ? 32 : 38) else {
+        guard let winner = best, winner.score >= (igBoost ? 28 : 34) else {
             GlassDiagnostics.shared.recordInjection(
                 score: best?.score ?? 0,
                 host: best?.kind ?? "none",
@@ -246,7 +246,7 @@ import UIKit
                 GlassAppSupport.shared.warnIfUnsupportedIfNeeded()
             }
             // Container: auto Force Show after sustained failure (~15s of tries)
-            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 8 {
+            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 5 {
                 if !GlassPreferences.shared.forceShowGlassButton {
                     GlassPreferences.shared.forceShowGlassButton = true
                     NSLog("[GlossyGlass] Container auto Force Show enabled")
@@ -323,7 +323,7 @@ import UIKit
             }
             if s >= 28 {
                 count += 1
-                if s >= 32, best == nil || s > best!.score { best = (stack, s, "Stack") }
+                if s >= 28, best == nil || s > best!.score { best = (stack, s, "Stack") }
             }
         }
 
@@ -353,7 +353,7 @@ import UIKit
             if let stack = firstHorizontalStack(in: view) {
                 let s = scoreStack(stack, container: view) + (igBoost ? 40 : 25)
                 count += 1
-                if s >= 32, best == nil || s > best!.score {
+                if s >= 28, best == nil || s > best!.score {
                     best = (stack, s, "Hint-\(name)")
                 }
             }
@@ -484,7 +484,7 @@ import UIKit
 private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
     init() {
         super.init(target: nil, action: nil)
-        minimumPressDuration = 3.0
+        minimumPressDuration = 1.0
         cancelsTouchesInView = false
         numberOfTouchesRequired = 1
         addTarget(self, action: #selector(handle))

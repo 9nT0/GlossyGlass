@@ -42,6 +42,10 @@ import UIKit
             prefs.log("DeviceProfiler: HIGH tier → Default preset")
         }
 
+        // v4 liquid baseline after tier preset
+        if tier == .high {
+            GlassThemeEngine.shared.applyLiquidDefault()
+        }
         defaults.set(true, forKey: firstLaunchKey)
         defaults.synchronize()
     }

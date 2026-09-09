@@ -1,3 +1,4 @@
+// v4 uses GlassNativeBridge when applying materials
 import UIKit
 
 /// GlossyGlass v3 renderer
@@ -24,7 +25,11 @@ import UIKit
 
     // MARK: - Layers / views
 
-    private let blurView = UIVisualEffectView(effect: nil)
+    private let // Prefer native liquid glass on iOS 26+
+        if let native = GlassNativeBridge.makeNativeGlassView(styleClear: prefs.style == "Clear") {
+            blurView = native
+        } else {
+            blurView = UIVisualEffectView(effect: nil)
     private let vibrancyView = UIVisualEffectView(effect: nil)
     private let dimmingLayer = CALayer()
     private let tintLayer = CALayer()

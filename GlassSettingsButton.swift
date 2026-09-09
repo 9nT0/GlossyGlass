@@ -107,6 +107,26 @@ import UIKit
 private class GlassSettingsViewController: UIViewController {
 
     private let prefs = GlassPreferences.shared
+
+    @objc private func themeTapped(_ sender: UIButton) {
+        let themes = ["Liquid", "Midnight", "Crystal", "Smoke"]
+        let idx = sender.tag - 900
+        guard idx >= 0, idx < themes.count else { return }
+        let name = themes[idx]
+        if GlassPreferences.shared.hapticsEnabled {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+        if name == "Liquid" {
+            GlassThemeEngine.shared.applyLiquidDefault()
+        } else {
+            GlossyGlassAPI.shared.applyQuickTheme(name)
+        }
+        GlassSyncBus.shared.requestSync(reason: "theme-\(name)")
+        let alert = UIAlertController(title: "Theme", message: "\(name) applied", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
     private var stack: UIStackView!
 
     override func viewDidLoad() {
@@ -198,17 +218,20 @@ private class GlassSettingsViewController: UIViewController {
         themeRow.distribution = .fillEqually
         themeRow.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
         themeRow.isLayoutMarginsRelativeArrangement = true
-        for name in ["Midnight", "Crystal", "Smoke", "Minimal"] {
+        let themes = ["Liquid", "Midnight", "Crystal", "Smoke"]
+        for (idx, name) in themes.enumerated() {
             let b = UIButton(type: .system)
             b.setTitle(name, for: .normal)
             b.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
             b.backgroundColor = UIColor.tertiarySystemFill
-            b.layer.cornerRadius = 8
-            b.addAction(UIAction { _ in
-                GlossyGlassAPI.shared.applyQuickTheme(name)
-            }, for: .touchUpInside)
+            b.layer.cornerRadius = 10
+            b.tag = 900 + idx
+            b.isUserInteractionEnabled = true
+            b.addTarget(self, action: #selector(themeTapped(_:)), for: .touchUpInside)
             themeRow.addArrangedSubview(b)
         }
+        themeRow.isUserInteractionEnabled = true
+        themeCard.isUserInteractionEnabled = true
         themeCard.addArrangedSubview(themeRow)
         stack.addArrangedSubview(themeCard)
 
@@ -368,7 +391,7 @@ private class GlassSettingsViewController: UIViewController {
         changeBtn.setTitle("Changelog", for: .normal)
         changeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         changeBtn.addAction(UIAction { [weak self] _ in
-            let alert = UIAlertController(title: "GlossyGlass 3.6", message: """
+            let alert = UIAlertController(title: "GlossyGlass 4.0", message: """
 • Messages 3s hold → settings
 • Force Show Glass button
 • Floating fallback if injection drops
