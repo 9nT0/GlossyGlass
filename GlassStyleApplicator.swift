@@ -30,6 +30,36 @@ import UIKit
         }
     }
 
+    @objc public static func applyToViewController(_ vc: UIViewController) {
+        let prefs = GlassPreferences.shared
+        guard prefs.isEnabled, !prefs.safeMode else { return }
+        if let nav = vc.navigationController?.navigationBar {
+            GlassNavigationHelper.applyNavigationBarStyle(to: nav)
+        }
+        if let tab = vc.tabBarController?.tabBar {
+            GlassNavigationHelper.applyTabBarStyle(to: tab)
+        }
+        // Contained bars
+        for child in vc.children {
+            if let nav = child as? UINavigationController {
+                GlassNavigationHelper.applyNavigationBarStyle(to: nav.navigationBar)
+            }
+            if let tab = child as? UITabBarController {
+                GlassNavigationHelper.applyTabBarStyle(to: tab.tabBar)
+            }
+        }
+        if let view = vc.viewIfLoaded {
+            walk(view, depth: 0)
+        }
+    }
+
+    @objc public static func applyToView(_ view: UIView) {
+        let prefs = GlassPreferences.shared
+        guard prefs.isEnabled, !prefs.safeMode else { return }
+        walk(view, depth: 0)
+    }
+
+
     @objc public static func applyAll() {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
@@ -74,7 +104,12 @@ import UIKit
         let looksHeader =
             lower.contains("navbar") || lower.contains("navigationbar") ||
             lower.contains("header") || lower.contains("topbar") ||
-            lower.contains("searchbar") || lower.contains("ignavigation")
+            lower.contains("searchbar") || lower.contains("ignavigation") ||
+            lower.contains("igtabbar") || lower.contains("igtab") ||
+            lower.contains("igsegment") || lower.contains("toolbar") ||
+            lower.contains("actionbar") || lower.contains("titleview") ||
+            lower.contains("igcustomnav") || lower.contains("statusbarm") ||
+            lower.contains("igmainfeed") && lower.contains("header")
 
         guard looksHeader else { return }
         // Only wide, short strips near the top

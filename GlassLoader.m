@@ -1,3 +1,4 @@
+void GlassHooks_Install(void);
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
