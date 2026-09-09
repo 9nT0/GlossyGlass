@@ -1,20 +1,18 @@
 import Foundation
 import UIKit
 
-/// v3.6.1 — Live Container reliable load
 @objc public class GlassLoader: NSObject {
 
     @objc public static let shared = GlassLoader()
-
     private static var observersArmed = false
     private static var bootstrapOnce = false
+    private static var welcomeShown = false
 
     private override init() {
         super.init()
         bootstrap()
     }
 
-    /// Safe to call many times (scene activate / LC late UI)
     @objc public static func kick(reason: String = "kick") {
         GlassLoader.shared.launch(reason: reason)
     }
@@ -23,18 +21,17 @@ import UIKit
         if !GlassLoader.bootstrapOnce {
             GlassLoader.bootstrapOnce = true
             armObserversIfNeeded()
-            NSLog("[GlossyGlass] Loader v4.0 bootstrap (container-aware)")
-            logEnvironment(tag: "bootstrap")
+            NSLog("[GlossyGlass] Loader v4 bootstrap")
         }
 
-        DispatchQueue.main.async { self.launch(reason: "immediate") }
+        // Immediate path — do not block on gate
+        DispatchQueue.main.async {
+            self.startCore(reason: "immediate")
+        }
 
-        let delays: [TimeInterval] = [
-            0.3, 0.8, 1.5, 2.5, 4.0, 6.0, 9.0, 12.0, 16.0, 22.0, 30.0, 40.0, 55.0
-        ]
-        for delay in delays {
+        for delay in [0.4, 1.0, 2.0, 4.0, 7.0, 12.0, 20.0, 35.0] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                self.launch(reason: "retry-\(delay)")
+                self.startCore(reason: "retry-\(delay)")
             }
         }
     }
@@ -42,7 +39,6 @@ import UIKit
     private func armObserversIfNeeded() {
         guard !GlassLoader.observersArmed else { return }
         GlassLoader.observersArmed = true
-
         let names: [Notification.Name] = [
             UIApplication.didBecomeActiveNotification,
             UIApplication.didFinishLaunchingNotification,
@@ -50,66 +46,56 @@ import UIKit
             UIScene.willEnterForegroundNotification
         ]
         for name in names {
-            NotificationCenter.default.addObserver(
-                forName: name,
-                object: nil,
-                queue: .main
-            ) { _ in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
                 GlassAppSupport.shared.refreshDetection()
-                GlassLoader.shared.launch(reason: name.rawValue)
+                self.startCore(reason: name.rawValue)
             }
         }
     }
 
-    private func launch(reason: String) {
+    private func startCore(reason: String) {
         if GlassPreferences.shared.safeMode {
-            NSLog("[GlossyGlass] Safe mode — skip (\(reason))")
+            NSLog("[GlossyGlass] safe mode skip \(reason)")
             return
         }
-
         GlassAppSupport.shared.refreshDetection()
         armObserversIfNeeded()
 
+        // Always try inject + chrome without waiting
+        GlassDeviceProfiler.applyIfNeeded()
+        GlassInjector.start()
+        GlassStyleApplicator.start()
+        GlassScreenProfileMonitor.start()
+
+        // Welcome as soon as any window exists
+        showWelcomeIfPossible()
+
+        // Also schedule through ready gate for late LC UI
         GlassReadyGate.shared.waitUntilReady {
-            GlassDeviceProfiler.applyIfNeeded()
-            // Container: if still not Instagram-flagged but IG classes appear mid-wait, refresh again
-            GlassAppSupport.shared.refreshDetection()
             GlassInjector.start()
-            GlassStyleApplicator.start()
-            GlassScreenProfileMonitor.start()
-            self.logEnvironment(tag: "launch-\(reason)")
+            GlassStyleApplicator.applyAll()
+            self.showWelcomeIfPossible()
         }
+
+        NSLog("[GlossyGlass] startCore \(reason) ig=%d windows=%d",
+              GlassAppSupport.shared.isInstagram ? 1 : 0,
+              GlassAppSupport.allWindows().count)
     }
 
-    private func logEnvironment(tag: String) {
-        let s = GlassAppSupport.shared
-        let d = GlassDiagnostics.shared
-        NSLog(
-            "[GlossyGlass][%@] bundle=%@ ig=%d container=%d signer=%@ attached=%d score=%d forceShow=%d",
-            tag,
-            s.bundleId,
-            s.isInstagram ? 1 : 0,
-            s.isContainerEnvironment ? 1 : 0,
-            s.signerName,
-            d.isAttached ? 1 : 0,
-            d.lastScore,
-            GlassPreferences.shared.forceShowGlassButton ? 1 : 0
-        )
+    private func showWelcomeIfPossible() {
+        guard !GlassLoader.welcomeShown else { return }
+        let windows = GlassAppSupport.allWindows()
+        guard !windows.isEmpty else { return }
+        GlassLoader.welcomeShown = true
+        GlassWelcome.present(force: true)
     }
 }
 
-// MARK: - Image-load entry (closest to +load)
-
 private enum GlassLoadTrigger {
     static let arm: Void = {
-        DispatchQueue.main.async {
-            _ = GlassLoader.shared
-        }
+        DispatchQueue.main.async { _ = GlassLoader.shared }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             GlassLoader.kick(reason: "LoadTrigger+1s")
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            GlassLoader.kick(reason: "LoadTrigger+5s")
         }
     }()
 }
@@ -122,7 +108,6 @@ public func GlassLoaderEntry() {
 
 @_cdecl("glossyglass_init")
 public func glossyglass_init() {
-    _ = GlassLoadTrigger.arm
     GlassLoader.kick(reason: "glossyglass_init")
 }
 

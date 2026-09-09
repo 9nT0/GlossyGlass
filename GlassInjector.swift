@@ -498,11 +498,14 @@ private class GlassOpenSettingsLongPress: UILongPressGestureRecognizer {
     }
 
     @objc private func handle(_ g: UILongPressGestureRecognizer) {
-        guard g.state == .began else { return }
-        if GlassPreferences.shared.hapticsEnabled {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        guard let view = g.view else { return }
+        if g.state == .began {
+            GlassAnimations.longPressLift(view)
+            if GlassPreferences.shared.hapticsEnabled {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
+            GlassSettingsPresenter.present()
         }
-        GlassSettingsPresenter.present()
     }
 }
 

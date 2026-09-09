@@ -1,82 +1,62 @@
 import UIKit
 
-/// Waits until the guest UI is actually alive before injection (critical for Live Container).
+/// Waits until guest UI is alive. Supports multiple waiters (critical fix).
 @objc public class GlassReadyGate: NSObject {
 
     @objc public static let shared = GlassReadyGate()
 
     private var polling = false
     private var startedAt: Date?
+    private var waiters: [() -> Void] = []
+    private var alreadyReady = false
 
-    /// True when we have a usable window + (IG signals OR any root VC / tab bar).
     @objc public func isUIReady() -> Bool {
         let windows = GlassAppSupport.allWindows()
-        guard !windows.isEmpty else { return false }
-
-        let hasKeyOrLarge = windows.contains { $0.isKeyWindow || ($0.bounds.width > 100 && $0.rootViewController != nil) }
-        guard hasKeyOrLarge else { return false }
-
-        // Instagram guest signals
-        if GlassAppSupport.shared.isInstagram { return true }
-
-        // Any substantial hierarchy
-        for w in windows {
-            if w.rootViewController != nil { return true }
-            if findTabBar(in: w) != nil { return true }
+        if windows.isEmpty { return false }
+        let hasWindow = windows.contains {
+            $0.isKeyWindow || ($0.bounds.width > 50 && $0.rootViewController != nil) || !$0.subviews.isEmpty
         }
-        return false
+        return hasWindow
     }
 
-    /// Poll until ready, then run `onReady`. Container mode: up to 60s. Else 30s.
     @objc public func waitUntilReady(onReady: @escaping () -> Void) {
-        GlassAppSupport.shared.refreshDetection()
-
-        if isUIReady() {
-            onReady()
+        if alreadyReady || isUIReady() {
+            alreadyReady = true
+            DispatchQueue.main.async { onReady() }
             return
         }
 
-        if polling {
-            // Already waiting — still try onReady when current poll succeeds via shared flag
-            return
-        }
+        waiters.append(onReady)
 
+        if polling { return }
         polling = true
         startedAt = Date()
-        let limit: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 60.0 : 30.0
-        let interval: TimeInterval = 0.5
+        let limit: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 45.0 : 20.0
 
         func tick() {
-            GlassAppSupport.shared.refreshDetection()
             if isUIReady() {
-                polling = false
-                NSLog("[GlossyGlass] ReadyGate: UI ready (%.1fs)", Date().timeIntervalSince(startedAt ?? Date()))
-                onReady()
+                finishReady()
                 return
             }
             let elapsed = Date().timeIntervalSince(startedAt ?? Date())
             if elapsed >= limit {
-                polling = false
-                NSLog("[GlossyGlass] ReadyGate: timeout after %.0fs — proceeding anyway", elapsed)
-                onReady()
+                NSLog("[GlossyGlass] ReadyGate timeout — proceed")
+                finishReady()
                 return
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
-                tick()
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { tick() }
         }
-
-        NSLog("[GlossyGlass] ReadyGate: waiting for UI (container=%@)", GlassAppSupport.shared.isContainerEnvironment ? "yes" : "no")
-        DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
-            tick()
-        }
+        NSLog("[GlossyGlass] ReadyGate waiting…")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { tick() }
     }
 
-    private func findTabBar(in view: UIView) -> UITabBar? {
-        if let t = view as? UITabBar { return t }
-        for s in view.subviews {
-            if let t = findTabBar(in: s) { return t }
+    private func finishReady() {
+        polling = false
+        alreadyReady = true
+        let copy = waiters
+        waiters.removeAll()
+        for w in copy {
+            w()
         }
-        return nil
     }
 }

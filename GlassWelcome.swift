@@ -5,16 +5,17 @@ import UIKit
     private static var presenting = false
 
     @objc public static func presentIfNeeded() {
-        let defs = UserDefaults(suiteName: "com.glossyglass.preferences") ?? .standard
-        if defs.bool(forKey: shownKey) { return }
         present(force: true)
     }
 
     @objc public static func present(force: Bool) {
         DispatchQueue.main.async {
             if presenting { return }
-            guard let host = GlassAppSupport.topViewController()?.view
-                    ?? GlassAppSupport.allWindows().first else { return }
+            let windows = GlassAppSupport.allWindows()
+            let hostView: UIView? = windows.first(where: { $0.isKeyWindow })
+                ?? windows.first
+                ?? GlassAppSupport.topViewController()?.view
+            guard let host = hostView else { return }
             presenting = true
             let overlay = GlassWelcomeView(frame: host.bounds)
             overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
