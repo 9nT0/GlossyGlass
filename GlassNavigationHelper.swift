@@ -1,78 +1,32 @@
 import UIKit
 
-/// Stronger liquid-glass NavigationBar + TabBar (v3.6.1 look pass)
+/// Real liquid-glass chrome for UINavigationBar + UITabBar.
+/// Edge-to-edge materials — no floating “box” overlays on the bar itself.
 @objc public class GlassNavigationHelper: NSObject {
-
-    @objc public static func applyTabBarStyle(to tabBar: UITabBar) {
-        let prefs = GlassPreferences.shared
-        guard prefs.isEnabled && prefs.styleTabBar else { return }
-
-        let appearance = UITabBarAppearance()
-        appearance.configureWithTransparentBackground()
-
-        let isDark = tabBar.traitCollection.userInterfaceStyle == .dark
-        let blur: UIBlurEffect.Style
-        if prefs.lightweightMode {
-            blur = .systemUltraThinMaterial
-        } else {
-            blur = isDark ? .systemThinMaterialDark : .systemThinMaterialLight
-        }
-
-        if prefs.blurEnabled {
-            appearance.backgroundEffect = UIBlurEffect(style: blur)
-            appearance.backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.04 : 0.08)
-        } else {
-            appearance.backgroundEffect = nil
-            appearance.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.92)
-        }
-        appearance.shadowColor = .clear
-        appearance.shadowImage = UIImage()
-
-        let item = UITabBarItemAppearance()
-        item.normal.iconColor = UIColor.label.withAlphaComponent(0.38)
-        item.selected.iconColor = .label
-        let fontN = UIFont.systemFont(ofSize: 10, weight: .medium)
-        let fontS = UIFont.systemFont(ofSize: 10, weight: .semibold)
-        item.normal.titleTextAttributes = [.foregroundColor: UIColor.label.withAlphaComponent(0.38), .font: fontN]
-        item.selected.titleTextAttributes = [.foregroundColor: UIColor.label, .font: fontS]
-        appearance.stackedLayoutAppearance = item
-        appearance.inlineLayoutAppearance = item
-        appearance.compactInlineLayoutAppearance = item
-
-        tabBar.standardAppearance = appearance
-        tabBar.scrollEdgeAppearance = appearance
-        tabBar.clipsToBounds = false
-        tabBar.layer.cornerRadius = 26
-        tabBar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        tabBar.layer.cornerCurve = .continuous
-        tabBar.layer.borderWidth = 0.5
-        tabBar.layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.12 : 0.28).cgColor
-        tabBar.layer.shadowColor = UIColor.black.cgColor
-        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.06 : 0.12
-        tabBar.layer.shadowRadius = 20
-        tabBar.layer.shadowOffset = CGSize(width: 0, height: -3)
-    }
 
     @objc public static func applyNavigationBarStyle(to navigationBar: UINavigationBar) {
         let prefs = GlassPreferences.shared
-        guard prefs.isEnabled && prefs.styleNavigationBar else { return }
+        guard prefs.isEnabled, prefs.styleNavigationBar, !prefs.safeMode else { return }
+
+        let isDark = navigationBar.traitCollection.userInterfaceStyle == .dark
+        let intensity = effectiveIntensity(isDark: isDark, prefs: prefs)
 
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()
+        appearance.shadowColor = .clear
+        appearance.shadowImage = UIImage()
 
-        let isDark = navigationBar.traitCollection.userInterfaceStyle == .dark
-        let blur: UIBlurEffect.Style = prefs.lightweightMode
-            ? .systemUltraThinMaterial
-            : (isDark ? .systemMaterialDark : .systemMaterialLight)
-
-        if prefs.blurEnabled {
-            appearance.backgroundEffect = UIBlurEffect(style: blur)
-            appearance.backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.05 : 0.10)
+        if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
+            let style = blurStyle(isDark: isDark, prefs: prefs)
+            appearance.backgroundEffect = UIBlurEffect(style: style)
+            // Slight tint so it reads as glass, not empty
+            let alpha = (isDark ? 0.06 : 0.10) * intensity * prefs.opacity
+            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.22, alpha))
         } else {
             appearance.backgroundEffect = nil
-            appearance.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.94)
+            appearance.backgroundColor = UIColor.secondarySystemBackground
+                .withAlphaComponent(0.88 * prefs.opacity)
         }
-        appearance.shadowColor = .clear
 
         let titleFont = UIFont.systemFont(ofSize: 17, weight: .semibold)
         appearance.titleTextAttributes = [
@@ -92,11 +46,115 @@ import UIKit
         }
 
         navigationBar.isTranslucent = true
-        navigationBar.layer.cornerCurve = .continuous
-        // Soft bottom edge highlight
-        navigationBar.layer.shadowColor = UIColor.black.cgColor
-        navigationBar.layer.shadowOpacity = prefs.lightweightMode ? 0.04 : 0.08
-        navigationBar.layer.shadowRadius = 12
-        navigationBar.layer.shadowOffset = CGSize(width: 0, height: 2)
+        navigationBar.barTintColor = .clear
+        navigationBar.backgroundColor = .clear
+        // NO cornerRadius on full-width nav — that creates the “box overlay” look
+        navigationBar.layer.cornerRadius = 0
+        navigationBar.layer.maskedCorners = []
+        navigationBar.layer.borderWidth = 0
+        navigationBar.layer.shadowOpacity = 0
+        navigationBar.setBackgroundImage(UIImage(), for: .default)
+        navigationBar.shadowImage = UIImage()
+
+        // Hairline glass edge under bar
+        installBottomHairline(on: navigationBar, isDark: isDark, intensity: intensity)
+    }
+
+    @objc public static func applyTabBarStyle(to tabBar: UITabBar) {
+        let prefs = GlassPreferences.shared
+        guard prefs.isEnabled, prefs.styleTabBar, !prefs.safeMode else { return }
+
+        let isDark = tabBar.traitCollection.userInterfaceStyle == .dark
+        let intensity = effectiveIntensity(isDark: isDark, prefs: prefs)
+
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.shadowColor = .clear
+        appearance.shadowImage = UIImage()
+
+        if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
+            let style = blurStyle(isDark: isDark, prefs: prefs)
+            appearance.backgroundEffect = UIBlurEffect(style: style)
+            let alpha = (isDark ? 0.05 : 0.09) * intensity * prefs.opacity
+            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.20, alpha))
+        } else {
+            appearance.backgroundEffect = nil
+            appearance.backgroundColor = UIColor.secondarySystemBackground
+                .withAlphaComponent(0.92 * prefs.opacity)
+        }
+
+        let item = UITabBarItemAppearance()
+        let fontN = UIFont.systemFont(ofSize: 10, weight: .medium)
+        let fontS = UIFont.systemFont(ofSize: 10, weight: .semibold)
+        item.normal.iconColor = UIColor.label.withAlphaComponent(0.40)
+        item.selected.iconColor = .label
+        item.normal.titleTextAttributes = [
+            .foregroundColor: UIColor.label.withAlphaComponent(0.40),
+            .font: fontN
+        ]
+        item.selected.titleTextAttributes = [
+            .foregroundColor: UIColor.label,
+            .font: fontS
+        ]
+        appearance.stackedLayoutAppearance = item
+        appearance.inlineLayoutAppearance = item
+        appearance.compactInlineLayoutAppearance = item
+
+        tabBar.standardAppearance = appearance
+        tabBar.scrollEdgeAppearance = appearance
+        tabBar.isTranslucent = true
+        tabBar.backgroundColor = .clear
+        tabBar.barTintColor = .clear
+
+        // Soft continuous top corners only (island feel) — not a full floating box
+        tabBar.clipsToBounds = false
+        tabBar.layer.cornerRadius = 22
+        tabBar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        tabBar.layer.cornerCurve = .continuous
+        tabBar.layer.borderWidth = prefs.edgeHighlightEnabled ? 0.45 : 0
+        tabBar.layer.borderColor = UIColor.white
+            .withAlphaComponent(isDark ? 0.14 * intensity : 0.28 * intensity).cgColor
+        tabBar.layer.shadowColor = UIColor.black.cgColor
+        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.05 : 0.10
+        tabBar.layer.shadowRadius = 16
+        tabBar.layer.shadowOffset = CGSize(width: 0, height: -2)
+    }
+
+    // MARK: - Helpers
+
+    private static func effectiveIntensity(isDark: Bool, prefs: GlassPreferences) -> CGFloat {
+        let base = isDark ? prefs.darkIntensity : prefs.lightIntensity
+        return max(0.15, min(1.0, base * prefs.intensity))
+    }
+
+    private static func blurStyle(isDark: Bool, prefs: GlassPreferences) -> UIBlurEffect.Style {
+        if prefs.lightweightMode {
+            return isDark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight
+        }
+        switch prefs.style.lowercased() {
+        case "clear":
+            return isDark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight
+        case "tinted":
+            return isDark ? .systemMaterialDark : .systemMaterialLight
+        default: // Frosted
+            return isDark ? .systemThinMaterialDark : .systemThinMaterialLight
+        }
+    }
+
+    private static let hairlineTag = 0x4747_484C // "GGHL"
+
+    private static func installBottomHairline(on bar: UIView, isDark: Bool, intensity: CGFloat) {
+        bar.viewWithTag(hairlineTag)?.removeFromSuperview()
+        let line = UIView()
+        line.tag = hairlineTag
+        line.translatesAutoresizingMaskIntoConstraints = false
+        line.backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.10 * intensity : 0.22 * intensity)
+        bar.addSubview(line)
+        NSLayoutConstraint.activate([
+            line.leadingAnchor.constraint(equalTo: bar.leadingAnchor),
+            line.trailingAnchor.constraint(equalTo: bar.trailingAnchor),
+            line.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
+            line.heightAnchor.constraint(equalToConstant: 1.0 / UIScreen.main.scale)
+        ])
     }
 }

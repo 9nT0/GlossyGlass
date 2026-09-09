@@ -56,6 +56,8 @@ import UIKit
                 GlassInjector.start()
                 GlassStyleApplicator.start()
                 GlassScreenProfileMonitor.start()
+                GlassWelcome.presentIfNeeded()
+                GlassFirstLaunch.checkAndShowIfNeeded()
                 if GlassAppSupport.shared.isContainerEnvironment,
                    !GlassDiagnostics.shared.isAttached {
                     GlassPreferences.shared.forceShowGlassButton = true
@@ -100,6 +102,8 @@ import UIKit
             GlassInjector.start()
             GlassStyleApplicator.start()
             GlassScreenProfileMonitor.start()
+            GlassWelcome.presentIfNeeded()
+            GlassFirstLaunch.checkAndShowIfNeeded()
             self.logEnvironment(tag: "launch-\(reason)")
         }
 

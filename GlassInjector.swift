@@ -273,6 +273,7 @@ import UIKit
             score: score, host: kind, candidates: 1, attached: true, note: "Injected \(kind)"
         )
         GlassPreferences.shared.log("Injected \(kind) score=\(score)")
+        GlassStyleApplicator.applyAll()
     }
 
     // MARK: - Scan
@@ -417,6 +418,7 @@ import UIKit
             score: 50, host: "Floating", candidates: 0, attached: true, note: "Floating fallback"
         )
         NSLog("[GlossyGlass] Floating Glass button on window")
+        GlassStyleApplicator.applyAll()
     }
 
     private static func removeFloatingFallback() {

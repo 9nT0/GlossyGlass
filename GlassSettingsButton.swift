@@ -49,9 +49,30 @@ import UIKit
             ? (isDark ? prefs.darkIntensity : prefs.lightIntensity) * prefs.intensity
             : 0.4
 
-        backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.12 + intensity * 0.10 : 0.55 + intensity * 0.15)
-        layer.borderWidth = 0.6
-        layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.22 : 0.45).cgColor
+        // Real material pill (not a flat opaque box)
+        backgroundColor = .clear
+        if viewWithTag(0x47474254) == nil, prefs.blurEnabled {
+            let style: UIBlurEffect.Style = isDark ? .systemThinMaterialDark : .systemThinMaterialLight
+            let blur = UIVisualEffectView(effect: UIBlurEffect(style: style))
+            blur.tag = 0x47474254
+            blur.isUserInteractionEnabled = false
+            blur.translatesAutoresizingMaskIntoConstraints = false
+            blur.layer.cornerRadius = 16
+            blur.layer.cornerCurve = .continuous
+            blur.clipsToBounds = true
+            insertSubview(blur, at: 0)
+            NSLayoutConstraint.activate([
+                blur.topAnchor.constraint(equalTo: topAnchor),
+                blur.leadingAnchor.constraint(equalTo: leadingAnchor),
+                blur.trailingAnchor.constraint(equalTo: trailingAnchor),
+                blur.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+        }
+        layer.borderWidth = 0.55
+        layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.20 * intensity : 0.40 * intensity).cgColor
+        layer.cornerRadius = 16
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
 
         // Soft highlight
         if layer.sublayers?.contains(where: { $0.name == "gg.gloss" }) != true {
