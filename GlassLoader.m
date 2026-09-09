@@ -1,9 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <objc/runtime.h>
 #import <dlfcn.h>
 
-// Swift entry points (GlossyGlass module)
+// Swift exports these (GlassLoader.swift) — do not redefine here
 extern void GlassLoaderEntry(void) __attribute__((weak));
 extern void glossyglass_init(void) __attribute__((weak));
 
@@ -16,9 +15,10 @@ static void GGCallSwift(void) {
         glossyglass_init();
         return;
     }
-    // Fallback: dlsym
     void *sym = dlsym(RTLD_DEFAULT, "GlassLoaderEntry");
     if (!sym) sym = dlsym(RTLD_DEFAULT, "glossyglass_init");
+    if (!sym) sym = dlsym(RTLD_DEFAULT, "TweakInitialize");
+    if (!sym) sym = dlsym(RTLD_DEFAULT, "Initialize");
     if (sym) {
         ((void (*)(void))sym)();
     }
@@ -28,14 +28,11 @@ static void GGSchedule(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         NSLog(@"[GlossyGlass] ObjC loader constructor armed");
-        // Immediate
         dispatch_async(dispatch_get_main_queue(), ^{ GGCallSwift(); });
-        // Staggered — LC / late UI
         for (NSNumber *n in @[@0.25, @0.75, @1.5, @3.0, @6.0, @12.0, @20.0]) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(n.doubleValue * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{ GGCallSwift(); });
         }
-        // Active / scene
         NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
         id block = ^(NSNotification *note) { GGCallSwift(); };
         [nc addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:block];
@@ -59,8 +56,3 @@ static void GlossyGlassConstructor(void) {
     GGSchedule();
 }
 @end
-
-// Explicit C exports some injectors look for
-void TweakInitialize(void) { GGCallSwift(); }
-void Initialize(void) { GGCallSwift(); }
-void glossyglass_ctor(void) { GGSchedule(); }
