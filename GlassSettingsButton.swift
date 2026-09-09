@@ -15,9 +15,71 @@ import UIKit
     private func commonSetup() {
         setTitle("Glass", for: .normal)
         titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
-        contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        glossIntensity = 0.55
+        // Avoid deprecated contentEdgeInsets when configuration exists — use config on iOS 15+
+        if #available(iOS 15.0, *) {
+            var config = UIButton.Configuration.plain()
+            config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: 14, bottom: 7, trailing: 14)
+            config.baseForegroundColor = .label
+            config.title = "Glass"
+            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+                var out = incoming
+                out.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
+                return out
+            }
+            configuration = config
+        } else {
+            contentEdgeInsets = UIEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
+        }
+        glossIntensity = 0.72
+        layer.cornerRadius = 16
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
         addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+        applyChrome()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(applyChrome),
+            name: .glassPreferencesDidChange, object: nil
+        )
+    }
+
+    @objc private func applyChrome() {
+        let prefs = GlassPreferences.shared
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        let intensity = prefs.isEnabled
+            ? (isDark ? prefs.darkIntensity : prefs.lightIntensity) * prefs.intensity
+            : 0.4
+
+        backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.12 + intensity * 0.10 : 0.55 + intensity * 0.15)
+        layer.borderWidth = 0.6
+        layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.22 : 0.45).cgColor
+
+        // Soft highlight
+        if layer.sublayers?.contains(where: { $0.name == "gg.gloss" }) != true {
+            let gloss = CAGradientLayer()
+            gloss.name = "gg.gloss"
+            gloss.colors = [
+                UIColor.white.withAlphaComponent(isDark ? 0.28 : 0.55).cgColor,
+                UIColor.white.withAlphaComponent(0.0).cgColor
+            ]
+            gloss.locations = [0, 0.55]
+            gloss.startPoint = CGPoint(x: 0.5, y: 0)
+            gloss.endPoint = CGPoint(x: 0.5, y: 1)
+            gloss.frame = bounds
+            gloss.cornerRadius = layer.cornerRadius
+            layer.insertSublayer(gloss, at: 0)
+        }
+        layer.sublayers?.first(where: { $0.name == "gg.gloss" })?.frame = bounds
+    }
+
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.sublayers?.first(where: { $0.name == "gg.gloss" })?.frame = bounds
+        layer.sublayers?.first(where: { $0.name == "gg.gloss" })?.cornerRadius = layer.cornerRadius
+    }
+
+    public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyChrome()
     }
 
     @objc private func openSettings() {
@@ -29,7 +91,6 @@ import UIKit
 
     @objc public static func present(from sourceView: UIView? = nil) {
         guard let top = GlassAppSupport.topViewController() else { return }
-
         let nav = UINavigationController(rootViewController: GlassSettingsViewController())
         nav.modalPresentationStyle = .pageSheet
         if #available(iOS 15.0, *) {
@@ -41,6 +102,7 @@ import UIKit
         top.present(nav, animated: true)
     }
 }
+
 
 private class GlassSettingsViewController: UIViewController {
 
@@ -306,7 +368,7 @@ private class GlassSettingsViewController: UIViewController {
         changeBtn.setTitle("Changelog", for: .normal)
         changeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         changeBtn.addAction(UIAction { [weak self] _ in
-            let alert = UIAlertController(title: "GlossyGlass 3.6.1", message: """
+            let alert = UIAlertController(title: "GlossyGlass 3.6", message: """
 • Messages 3s hold → settings
 • Force Show Glass button
 • Floating fallback if injection drops
@@ -314,7 +376,6 @@ private class GlassSettingsViewController: UIViewController {
 • Auto screen profiles (optional)
 • Nav / Tab / Buttons / Cards applicator
 • Smoother animations · stronger Reduce Motion
-• API v361 · Live Container / container support
 • API v36 · iOS 16+ (17–18 recommended)
 """, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -334,7 +395,7 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(redetectBtn)
 
         let footer = UILabel()
-        footer.text = "Hold Messages 3s to open settings\nGlossyGlass · Killswitch · v3.6.1"
+        footer.text = "Hold Messages 3s to open settings\nGlossyGlass · Killswitch · v3.6"
         footer.font = .systemFont(ofSize: 11, weight: .medium)
         footer.numberOfLines = 2
         footer.textColor = .tertiaryLabel
