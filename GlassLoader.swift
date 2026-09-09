@@ -1,70 +1,64 @@
 import Foundation
 import UIKit
 
-/// v3.6.1 — container-friendly auto-start (Live Container, multi-scene hosts)
+/// v3.6.1 — Live Container reliable load
 @objc public class GlassLoader: NSObject {
 
     @objc public static let shared = GlassLoader()
-    private static var didStart = false
+
+    private static var observersArmed = false
+    private static var bootstrapOnce = false
 
     private override init() {
         super.init()
         bootstrap()
     }
 
+    /// Safe to call many times (scene activate / LC late UI)
+    @objc public static func kick(reason: String = "kick") {
+        GlassLoader.shared.launch(reason: reason)
+    }
+
     private func bootstrap() {
-        guard !GlassLoader.didStart else { return }
-        GlassLoader.didStart = true
+        if !GlassLoader.bootstrapOnce {
+            GlassLoader.bootstrapOnce = true
+            armObserversIfNeeded()
+            NSLog("[GlossyGlass] Loader v3.6.1 bootstrap (container-aware)")
+            logEnvironment(tag: "bootstrap")
+        }
 
         DispatchQueue.main.async { self.launch(reason: "immediate") }
 
-        // Longer, denser schedule for containers (guest UI appears late)
         let delays: [TimeInterval] = [
-            0.2, 0.5, 0.9, 1.4, 2.0, 3.0, 4.5, 6.0, 8.0, 11.0, 15.0, 20.0, 28.0, 40.0
+            0.3, 0.8, 1.5, 2.5, 4.0, 6.0, 9.0, 12.0, 16.0, 22.0, 30.0, 40.0, 55.0
         ]
         for delay in delays {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 self.launch(reason: "retry-\(delay)")
             }
         }
+    }
 
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            GlassAppSupport.shared.refreshDetection()
-            self.launch(reason: "active")
+    private func armObserversIfNeeded() {
+        guard !GlassLoader.observersArmed else { return }
+        GlassLoader.observersArmed = true
+
+        let names: [Notification.Name] = [
+            UIApplication.didBecomeActiveNotification,
+            UIApplication.didFinishLaunchingNotification,
+            UIScene.didActivateNotification,
+            UIScene.willEnterForegroundNotification
+        ]
+        for name in names {
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { _ in
+                GlassAppSupport.shared.refreshDetection()
+                GlassLoader.shared.launch(reason: name.rawValue)
+            }
         }
-
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didFinishLaunchingNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            GlassAppSupport.shared.refreshDetection()
-            self.launch(reason: "didFinishLaunching")
-        }
-
-        // Scene activation — critical for containers
-        NotificationCenter.default.addObserver(
-            forName: UIScene.didActivateNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            GlassAppSupport.shared.refreshDetection()
-            self.launch(reason: "sceneActivate")
-        }
-
-        NotificationCenter.default.addObserver(
-            forName: UIScene.willEnterForegroundNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            self.launch(reason: "sceneForeground")
-        }
-
-        NSLog("[GlossyGlass] Loader v3.6.1 initialized (container-aware)")
     }
 
     private func launch(reason: String) {
@@ -72,39 +66,77 @@ import UIKit
             NSLog("[GlossyGlass] Safe mode — skip (\(reason))")
             return
         }
-        GlassDeviceProfiler.applyIfNeeded()
-        GlassInjector.start()
-        GlassStyleApplicator.start()
-        GlassScreenProfileMonitor.start()
-        NSLog("[GlossyGlass] launch reason=\(reason) ig=\(GlassAppSupport.shared.isInstagram) container=\(GlassAppSupport.shared.isContainerEnvironment)")
+
+        GlassAppSupport.shared.refreshDetection()
+        armObserversIfNeeded()
+
+        GlassReadyGate.shared.waitUntilReady {
+            GlassDeviceProfiler.applyIfNeeded()
+            // Container: if still not Instagram-flagged but IG classes appear mid-wait, refresh again
+            GlassAppSupport.shared.refreshDetection()
+            GlassInjector.start()
+            GlassStyleApplicator.start()
+            GlassScreenProfileMonitor.start()
+            self.logEnvironment(tag: "launch-\(reason)")
+        }
     }
+
+    private func logEnvironment(tag: String) {
+        let s = GlassAppSupport.shared
+        let d = GlassDiagnostics.shared
+        NSLog(
+            "[GlossyGlass][%@] bundle=%@ ig=%d container=%d signer=%@ attached=%d score=%d forceShow=%d",
+            tag,
+            s.bundleId,
+            s.isInstagram ? 1 : 0,
+            s.isContainerEnvironment ? 1 : 0,
+            s.signerName,
+            d.isAttached ? 1 : 0,
+            d.lastScore,
+            GlassPreferences.shared.forceShowGlassButton ? 1 : 0
+        )
+    }
+}
+
+// MARK: - Image-load entry (closest to +load)
+
+@objc private class GlassLoadTrigger: NSObject {
+    @objc static let arm: Void = {
+        DispatchQueue.main.async {
+            _ = GlassLoader.shared
+        }
+        // Also delayed for LC: Ellekit may load us before guest UIApplication
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            GlassLoader.kick(reason: "LoadTrigger+1s")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            GlassLoader.kick(reason: "LoadTrigger+5s")
+        }
+    }()
 }
 
 @_cdecl("GlassLoaderEntry")
 public func GlassLoaderEntry() {
+    _ = GlassLoadTrigger.arm
     _ = GlassLoader.shared
 }
 
 @_cdecl("glossyglass_init")
 public func glossyglass_init() {
-    _ = GlassLoader.shared
+    _ = GlassLoadTrigger.arm
+    GlassLoader.kick(reason: "glossyglass_init")
 }
 
-// Extra symbols some container injectors look for
 @_cdecl("TweakInitialize")
 public func TweakInitialize() {
-    _ = GlassLoader.shared
+    GlassLoader.kick(reason: "TweakInitialize")
 }
 
 @_cdecl("Initialize")
 public func Initialize() {
-    _ = GlassLoader.shared
+    GlassLoader.kick(reason: "Initialize")
 }
 
 private let __glassAutoLoad: Void = {
-    DispatchQueue.global(qos: .userInitiated).async {
-        DispatchQueue.main.async {
-            _ = GlassLoader.shared
-        }
-    }
+    _ = GlassLoadTrigger.arm
 }()

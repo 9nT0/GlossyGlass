@@ -48,6 +48,12 @@ import Darwin
     }
 
     @objc public var isInstagram: Bool {
+        // In containers, re-check often — guest classes may appear late
+        if isContainerEnvironment {
+            let v = detectInstagram()
+            cachedInstagram = v
+            return v
+        }
         if let c = cachedInstagram { return c }
         let v = detectInstagram()
         cachedInstagram = v
@@ -145,10 +151,11 @@ import Darwin
             }
         }
 
-        for b in Bundle.allBundles {
+        for b in Bundle.allBundles + Bundle.allFrameworks {
             let bid = (b.bundleIdentifier ?? "").lowercased()
             let bpath = b.bundlePath.lowercased()
-            if bid.contains("instagram") || bpath.contains("instagram") || bid.contains("burbn") {
+            if bid.contains("instagram") || bpath.contains("instagram") || bid.contains("burbn")
+                || bid.hasPrefix("com.instagram") {
                 return true
             }
         }

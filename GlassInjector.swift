@@ -245,8 +245,14 @@ import UIKit
             if injectionAttempts >= 14 {
                 GlassAppSupport.shared.warnIfUnsupportedIfNeeded()
             }
-            // Permanent fallback so the button never "disappears" forever
-            if injectionAttempts >= 6 {
+            // Container: auto Force Show after sustained failure (~15s of tries)
+            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 8 {
+                if !GlassPreferences.shared.forceShowGlassButton {
+                    GlassPreferences.shared.forceShowGlassButton = true
+                    NSLog("[GlossyGlass] Container auto Force Show enabled")
+                }
+                ensureFloatingFallback()
+            } else if injectionAttempts >= 6 {
                 ensureFloatingFallback()
             }
             return

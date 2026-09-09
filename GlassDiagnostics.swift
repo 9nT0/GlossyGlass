@@ -30,29 +30,36 @@ import UIKit
 
     @objc public func summary() -> String {
         let p = GlassPreferences.shared
+        let s = GlassAppSupport.shared
         return """
         GlossyGlass Diagnostics v3.6.1
         ----------------------------
         Glass: \(glassVersion)
         iOS: \(iosVersion)
         Device: \(deviceModel)
-        Host app: \(hostAppVersion)
+        Host app version: \(hostAppVersion)
+
+        Bundle: \(s.bundleId)
+        App: \(s.appName)
+        Instagram: \(s.isInstagram)
+        Container: \(s.isContainerEnvironment)
+        Signer: \(s.signerName)
+        Path: \(s.executablePath)
 
         Enabled: \(p.isEnabled)
         Safe mode: \(p.safeMode)
+        Force show: \(p.forceShowGlassButton)
         Style: \(p.style)
         Intensity: \(String(format: "%.2f", p.intensity))
         Opacity: \(String(format: "%.2f", p.opacity))
-        Blur: \(p.blurEnabled)  Vibrancy: \(p.vibrancyEnabled)
-        Noise: \(p.noiseEnabled)  Bloom: \(p.lightBloomEnabled)
-        Edge: \(p.edgeHighlightEnabled)
         Lightweight: \(p.lightweightMode)
 
         Attached: \(isAttached)
         Last score: \(lastScore)
-        Host: \(lastHostClass)
+        Host class: \(lastHostClass)
         Candidates: \(candidateCount)
         Note: \(lastInjectionNote)
+        UI ready: \(GlassReadyGate.shared.isUIReady())
         """
     }
 
