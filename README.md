@@ -25,8 +25,6 @@
 - API **v40**: `presentWelcome`, `applyLiquidGlassLook`, `applyLiquidHeavyLook`  
 - Settings: Liquid quick theme  
 
-> Compiled dylib size is typically a few hundred KB–low MB of code. A ~10MB binary would mean embedded assets, not “more quality.” v4 focuses on real features and reliability, not padding.
-
 ## Install
 
 1. [Releases](../../releases) → `GlossyGlass.dylib`  
