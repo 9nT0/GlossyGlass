@@ -5,7 +5,7 @@ import UIKit
 
     @objc public static let shared = GlossyGlassAPI()
     @objc public static let apiVersion: Int = 40
-    @objc public static let apiVersionString: String = "4.0.1"
+    @objc public static let apiVersionString: String = "4.0.2"
 
     // MARK: - Core enable
 

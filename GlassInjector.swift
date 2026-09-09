@@ -234,7 +234,7 @@ import UIKit
             scan(window, depth: 0, best: &best, count: &candidateCount, igBoost: igBoost)
         }
 
-        guard let winner = best, winner.score >= (igBoost ? 28 : 34) else {
+        guard let winner = best, winner.score >= (igBoost ? 18 : 24) else {
             GlassDiagnostics.shared.recordInjection(
                 score: best?.score ?? 0,
                 host: best?.kind ?? "none",
@@ -246,13 +246,13 @@ import UIKit
                 GlassAppSupport.shared.warnIfUnsupportedIfNeeded()
             }
             // Container: auto Force Show after sustained failure (~15s of tries)
-            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 5 {
+            if GlassAppSupport.shared.isContainerEnvironment && injectionAttempts >= 2 {
                 if !GlassPreferences.shared.forceShowGlassButton {
                     GlassPreferences.shared.forceShowGlassButton = true
                     NSLog("[GlossyGlass] Container auto Force Show enabled")
                 }
                 ensureFloatingFallback()
-            } else if injectionAttempts >= 6 {
+            } else if injectionAttempts >= 3 {
                 ensureFloatingFallback()
             }
             return
@@ -424,7 +424,12 @@ import UIKit
         }
         removeFloatingFallback()
         let windows = GlassAppSupport.allWindows()
-        guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else { return }
+        guard let window = windows.first(where: { $0.isKeyWindow })
+                ?? windows.first(where: { $0.rootViewController != nil })
+                ?? windows.first else {
+            NSLog("[GlossyGlass] floating: no window yet")
+            return
+        }
 
         let btn = GlassSettingsButton()
         btn.translatesAutoresizingMaskIntoConstraints = false

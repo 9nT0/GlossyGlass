@@ -1,7 +1,5 @@
 import UIKit
 
-/// Waits until guest UI is alive before injection (critical for Live Container).
-/// Supports multiple concurrent waiters — LC + DylibLoader kick many times.
 @objc public class GlassReadyGate: NSObject {
 
     @objc public static let shared = GlassReadyGate()
@@ -11,30 +9,29 @@ import UIKit
     private var waiters: [() -> Void] = []
     private var alreadyReady = false
 
-    /// True when we have a usable window + (IG signals OR any root VC / tab bar).
     @objc public func isUIReady() -> Bool {
         let windows = GlassAppSupport.allWindows()
-        guard !windows.isEmpty else { return false }
-
-        let hasKeyOrLarge = windows.contains {
-            $0.isKeyWindow || ($0.bounds.width > 100 && $0.rootViewController != nil)
-        }
-        guard hasKeyOrLarge else { return false }
-
-        if GlassAppSupport.shared.isInstagram { return true }
-
-        for w in windows {
-            if w.rootViewController != nil { return true }
-            if findTabBar(in: w) != nil { return true }
-            if GlassAppSupport.shared.isContainerEnvironment,
-               w.bounds.width > 100, w.alpha > 0.5, !w.subviews.isEmpty {
-                return true
+        if windows.isEmpty {
+            for scene in UIApplication.shared.connectedScenes {
+                guard let ws = scene as? UIWindowScene else { continue }
+                if ws.windows.contains(where: { !$0.isHidden && $0.bounds.width > 50 }) {
+                    return true
+                }
             }
+            return false
         }
-        return false
+
+        if windows.contains(where: { $0.isKeyWindow }) { return true }
+        if windows.contains(where: { $0.rootViewController != nil && $0.bounds.width > 50 }) {
+            return true
+        }
+        if GlassAppSupport.shared.isInstagram { return true }
+        if GlassAppSupport.shared.isContainerEnvironment {
+            return windows.contains { $0.bounds.width > 80 && $0.alpha > 0.2 }
+        }
+        return windows.contains { !$0.subviews.isEmpty }
     }
 
-    /// Poll until ready, then run `onReady`. Multiple callers are all notified.
     @objc public func waitUntilReady(onReady: @escaping () -> Void) {
         GlassAppSupport.shared.refreshDetection()
 
@@ -49,8 +46,8 @@ import UIKit
 
         polling = true
         startedAt = Date()
-        let limit: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 60.0 : 30.0
-        let interval: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 0.4 : 0.5
+        let limit: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 45.0 : 20.0
+        let interval: TimeInterval = 0.35
 
         func tick() {
             GlassAppSupport.shared.refreshDetection()
@@ -69,7 +66,7 @@ import UIKit
 
         NSLog("[GlossyGlass] ReadyGate: waiting (container=%@)",
               GlassAppSupport.shared.isContainerEnvironment ? "yes" : "no")
-        DispatchQueue.main.asyncAfter(deadline: .now() + interval) { tick() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { tick() }
     }
 
     private func finishReady(tag: String) {
@@ -77,8 +74,7 @@ import UIKit
         alreadyReady = true
         let copy = waiters
         waiters.removeAll()
-        NSLog("[GlossyGlass] ReadyGate: %@ — notifying %lu waiters",
-              tag, UInt(copy.count))
+        NSLog("[GlossyGlass] ReadyGate: %@ — %lu waiters", tag, UInt(copy.count))
         for w in copy { w() }
     }
 
@@ -86,13 +82,5 @@ import UIKit
         alreadyReady = false
         polling = false
         waiters.removeAll()
-    }
-
-    private func findTabBar(in view: UIView) -> UITabBar? {
-        if let t = view as? UITabBar { return t }
-        for s in view.subviews {
-            if let t = findTabBar(in: s) { return t }
-        }
-        return nil
     }
 }
