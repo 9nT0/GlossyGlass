@@ -14,7 +14,7 @@ import UIKit
     }
 
     @objc public static func kick(reason: String = "kick") {
-        GlassLoader.shared.launch(reason: reason)
+        GlassLoader.shared.startCore(reason: reason)
     }
 
     private func bootstrap() {
@@ -53,7 +53,7 @@ import UIKit
         }
     }
 
-    private func startCore(reason: String) {
+    func startCore(reason: String) {
         if GlassPreferences.shared.safeMode {
             NSLog("[GlossyGlass] safe mode skip \(reason)")
             return
