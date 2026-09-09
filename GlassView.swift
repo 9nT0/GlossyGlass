@@ -374,10 +374,9 @@ import UIKit
         GlassAnimations.pressOut(self)
     }
 
-
     private func bestBlurEffect(dark: Bool) -> UIVisualEffect {
         let prefs = GlassPreferences.shared
-        if prefs.style == "Clear", let native = GlassNativeBridge.makeNativeGlassView(styleClear: true)?.effect {
+        if let native = GlassNativeBridge.makeNativeGlassView(styleClear: prefs.style == "Clear")?.effect {
             return native
         }
         if let native = GlassNativeBridge.makeNativeGlassView(styleClear: false)?.effect {

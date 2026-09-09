@@ -1,6 +1,5 @@
 import UIKit
 
-/// Multi-strategy view locator used by injector
 @objc public class GlassLocator: NSObject {
     @objc public static let shared = GlassLocator()
 
@@ -15,16 +14,15 @@ import UIKit
     }
 
     @objc public func findBestHostView() -> UIView? {
-        findBestButtonHost()?.view
+        return findBestButtonHost()?.view
     }
 
     @objc public func findBestHostScore() -> Int {
-        findBestButtonHost()?.score ?? 0
+        return findBestButtonHost()?.score ?? 0
     }
 
     private func walk(_ view: UIView, depth: Int, bestView: inout UIView?, bestScore: inout Int) {
         if depth > 14 { return }
-        // Skip nav title / logo-like large labels
         if let label = view as? UILabel {
             let t = (label.text ?? "").lowercased()
             if t.contains("instagram") { return }
@@ -46,14 +44,12 @@ import UIKit
             $0 is UIControl || $0 is UIButton || ($0.bounds.height > 18 && $0.bounds.height < 56)
         }
         guard controls.count >= 2, controls.count <= 6 else { return 0 }
-        // Reject stacks that look like story rings / logo area (too tall / wide single item)
         if stack.bounds.height > 72 { return 0 }
         var score = 20 + controls.count * 10
         if controls.count == 3 || controls.count == 4 { score += 20 }
         let name = String(describing: type(of: stack)).lowercased()
         if name.contains("profile") || name.contains("action") || name.contains("header") { score += 15 }
         if name.contains("story") || name.contains("logo") || name.contains("brand") { score -= 40 }
-        // Prefer top-trailing profile action clusters (small height)
         if stack.bounds.height > 18 && stack.bounds.height < 48 { score += 12 }
         if GlassAppSupport.shared.isInstagram { score += 10 }
         return max(0, score)
