@@ -1,36 +1,28 @@
 import UIKit
 
-/// Uses real UIGlassEffect on iOS 26+ when the class exists; otherwise fallback materials.
+/// Uses real UIGlassEffect on iOS 26+ when the class exists at runtime.
 @objc public class GlassNativeBridge: NSObject {
 
     @objc public static var isNativeGlassAvailable: Bool {
-        if #available(iOS 26.0, *) {
-            return NSClassFromString("UIGlassEffect") != nil
-        }
-        return false
+        NSClassFromString("UIGlassEffect") != nil
     }
 
-    /// Best-effort native glass visual effect view for iOS 26+.
     @objc public static func makeNativeGlassView(styleClear: Bool) -> UIVisualEffectView? {
-        guard #available(iOS 26.0, *) else { return nil }
-        guard let glassClass = NSClassFromString("UIGlassEffect") as? NSObject.Type else { return nil }
-
-        // UIGlassEffect() via runtime
-        let effect: UIVisualEffect?
-        if styleClear {
-            // Prefer clear style selector if present
-            if glassClass.responds(to: Selector(("clearEffect"))) {
-                effect = glassClass.perform(Selector(("clearEffect")))?.takeUnretainedValue() as? UIVisualEffect
-            } else {
-                effect = (glassClass as? UIVisualEffect.Type).map { $0.init() } 
-                    ?? (NSClassFromString("UIBlurEffect") as? UIBlurEffect.Type).map { $0.init(style: .systemUltraThinMaterial) }
-            }
-        } else {
-            effect = (glassClass as? UIVisualEffect.Type).map { $0.init() }
-                ?? UIBlurEffect(style: .systemThinMaterial)
+        guard let glassClass = NSClassFromString("UIGlassEffect") as? NSObject.Type else {
+            return nil
         }
-        guard let effect else { return nil }
-        let v = UIVisualEffectView(effect: effect)
+        // UIGlassEffect inherits UIVisualEffect — allocate via ObjC runtime
+        let effect: AnyObject?
+        if styleClear, glassClass.responds(to: NSSelectorFromString("clearEffect")) {
+            effect = glassClass.perform(NSSelectorFromString("clearEffect"))?.takeUnretainedValue()
+        } else if glassClass.responds(to: NSSelectorFromString("effectWithStyle:")) {
+            // Some betas use style enum — fall through to init
+            effect = glassClass.init()
+        } else {
+            effect = glassClass.init()
+        }
+        guard let visual = effect as? UIVisualEffect else { return nil }
+        let v = UIVisualEffectView(effect: visual)
         v.clipsToBounds = true
         return v
     }

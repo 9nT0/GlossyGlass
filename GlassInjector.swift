@@ -371,8 +371,15 @@ import UIKit
             NSStringFromClass(type(of: $0)).lowercased().contains("button")
         }
         guard controls.count >= 2, controls.count <= 5 else { return 0 }
+        // Never treat brand/logo title stacks as hosts
+        for v in stack.arrangedSubviews {
+            if let lab = v as? UILabel {
+                let s = (lab.text ?? "").lowercased()
+                if s.contains("instagram") { return 0 }
+            }
+        }
+        if stack.bounds.height > 64 { return 0 }
         var score = 25 + min(controls.count, 4) * 8
-        // Prefer bars that already have 3–4 items so Glass becomes the 5th
         if controls.count == 3 || controls.count == 4 { score += 18 }
         if stack.arrangedSubviews.count <= 5 { score += 8 }
         let heights = controls.map { $0.bounds.height }.filter { $0 > 0 }
