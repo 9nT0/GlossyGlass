@@ -1,29 +1,21 @@
 name: Build iOS dylib
-
 on:
   workflow_dispatch:
   push:
     branches: [main, master]
-
 jobs:
   build:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
-
       - name: Build iOS dylib
         shell: bash
         run: |
           set -euo pipefail
           echo "Xcode = $(xcodebuild -version | head -1)"
-          
-          # Create project directory
           mkdir -p GlossyGlass.xcodeproj
-          
-          # Write the project file
           cat > GlossyGlass.xcodeproj/project.pbxproj << 'ENDPROJECT'
           // !$*UTF8*$!
           {
@@ -49,6 +41,7 @@ jobs:
               A10 /* GlassAppSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10; };
               A11 /* GlassStyleApplicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B11; };
               A12 /* GlassScreenProfileMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12; };
+              A13 /* GlassReadyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13; };
               B01 /* GlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassView.swift; sourceTree = "<group>"; };
               B02 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
               B03 /* GlassSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSlider.swift; sourceTree = "<group>"; };
@@ -67,13 +60,14 @@ jobs:
               B10 /* GlassAppSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassAppSupport.swift; sourceTree = "<group>"; };
               B11 /* GlassStyleApplicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassStyleApplicator.swift; sourceTree = "<group>"; };
               B12 /* GlassScreenProfileMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassScreenProfileMonitor.swift; sourceTree = "<group>"; };
+              B13 /* GlassReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassReadyGate.swift; sourceTree = "<group>"; };
               C01 /* GlossyGlass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = GlossyGlass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
               D01 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
               E01 = {isa = PBXGroup; children = (E02, E03); sourceTree = "<group>"; };
-              E02 /* Sources */ = {isa = PBXGroup; children = (B01, B02, B03, B04, B05, B06, B07, B08, B09, B0A, B0B, B0C, B0D, B0E, B0F, B10, B11, B12); name = Sources; sourceTree = "<group>"; };
+              E02 /* Sources */ = {isa = PBXGroup; children = (B01, B02, B03, B04, B05, B06, B07, B08, B09, B0A, B0B, B0C, B0D, B0E, B0F, B10, B11, B12, B13); name = Sources; sourceTree = "<group>"; };
               E03 /* Products */ = {isa = PBXGroup; children = (C01); name = Products; sourceTree = "<group>"; };
               F01 /* GlossyGlass */ = {isa = PBXNativeTarget; buildConfigurationList = G02; buildPhases = (F02, D01); buildRules = (); dependencies = (); name = GlossyGlass; productName = GlossyGlass; productReference = C01; productType = "com.apple.product-type.library.dynamic"; };
-              F02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A01, A02, A03, A04, A05, A06, A07, A08, A09, A0A, A0B, A0C, A0D, A0E, A0F, A10, A11, A12); runOnlyForDeploymentPostprocessing = 0; };
+              F02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A01, A02, A03, A04, A05, A06, A07, A08, A09, A0A, A0B, A0C, A0D, A0E, A0F, A10, A11, A12, A13); runOnlyForDeploymentPostprocessing = 0; };
               H01 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; }; buildConfigurationList = G01; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = E01; productRefGroup = E03; projectDirPath = ""; projectRoot = ""; targets = (F01); };
               I01 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; VALIDATE_PRODUCT = YES; }; name = Release; };
               I02 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_REQUIRED = NO; DYLIB_COMPATIBILITY_VERSION = 1; DYLIB_CURRENT_VERSION = 1; EXECUTABLE_PREFIX = ""; GENERATE_INFOPLIST_FILE = YES; INSTALL_PATH = "@rpath"; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"); OTHER_LDFLAGS = ("-framework", Foundation, "-framework", UIKit, "-framework", SwiftUI, "-framework", QuartzCore); PRODUCT_BUNDLE_IDENTIFIER = com.killswitch.GlossyGlass; PRODUCT_NAME = GlossyGlass; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = iphoneos; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
@@ -83,7 +77,6 @@ jobs:
             rootObject = H01 /* Project object */;
           }
           ENDPROJECT
-
           echo "Building with xcodebuild..."
           xcodebuild \
             -project GlossyGlass.xcodeproj \
@@ -94,39 +87,29 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             build
-
           DYLIB=$(find build -name "GlossyGlass.dylib" | head -1)
           if [ -z "$DYLIB" ]; then
             echo "ERROR: dylib not found"
             find build -type f | head -40
             exit 1
           fi
-
           mkdir -p output
           cp "$DYLIB" output/GlossyGlass.dylib
-
           echo "=== file ==="
           file output/GlossyGlass.dylib
           echo "=== LC_BUILD_VERSION ==="
           otool -l output/GlossyGlass.dylib | grep -A8 LC_BUILD_VERSION || true
-
-          # Correct platform numbers:
-          # platform 1 = macOS
-          # platform 2 = iOS
           if otool -l output/GlossyGlass.dylib | grep -q "platform 1"; then
             echo "ERROR: This is a macOS binary (platform 1)"
             exit 1
           fi
-
           if otool -l output/GlossyGlass.dylib | grep -q "platform 2"; then
             echo "✅ SUCCESS: Real iOS binary (platform 2)"
           else
             echo "Platform info:"
             otool -l output/GlossyGlass.dylib | grep -A10 LC_BUILD_VERSION || true
           fi
-
           ls -la output/
-
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
