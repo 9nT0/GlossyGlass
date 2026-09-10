@@ -15,7 +15,7 @@ import CoreImage
         public let vibrancy: Bool
     }
 
-    @objc public func passes(forStyle style: String, intensity: CGFloat, dark: Bool) -> [[String: CGFloat]] {
+    public func passes(forStyle style: String, intensity: CGFloat, dark: Bool) -> [[String: CGFloat]] {
         let i = max(0.05, min(1, intensity))
         switch style.lowercased() {
         case "clear":
@@ -53,7 +53,7 @@ import CoreImage
         }
     }
 
-    @objc public func evaluateQuality() -> [String: Any] {
+    public func evaluateQuality() -> [String: Any] {
         [
             "pipeline": "v4-liquid",
             "passes_clear": passes(forStyle: "clear", intensity: 0.6, dark: true).count,

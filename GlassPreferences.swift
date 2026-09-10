@@ -431,6 +431,11 @@ import Foundation
     private func notifyChange() {
         notifyWorkItem?.cancel()
         NotificationCenter.default.post(name: .glassPreferencesDidChange, object: nil)
+        // Strong apply so every settings toggle updates chrome immediately
+        DispatchQueue.main.async {
+            GlassStyleApplicator.applyAll()
+            GlassLiquidTabBar.shared.refresh()
+        }
         if debugLogging { print("[GlossyGlass] Preferences updated") }
     }
 

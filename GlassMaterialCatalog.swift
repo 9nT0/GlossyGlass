@@ -5,7 +5,7 @@ import UIKit
 
     @objc public static let shared = GlassMaterialCatalog()
 
-    @objc public struct Material {
+    public struct Material {
         public let id: String
         public let title: String
         public let style: String

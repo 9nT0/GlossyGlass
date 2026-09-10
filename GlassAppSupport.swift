@@ -294,7 +294,7 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
 
     @objc public func present(_ controller: UIViewController, animated: Bool) {
         let win: UIWindow
-        if let existing = window, existing.screen != nil {
+        if let existing = window {
             win = existing
         } else {
             if let scene = UIApplication.shared.connectedScenes

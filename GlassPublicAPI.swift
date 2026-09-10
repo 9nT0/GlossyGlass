@@ -221,8 +221,11 @@ import UIKit
         GlassMaterialCatalog.shared.applyMaterial(id: materialId)
     }
 
-    @objc public func effectPipelineQuality() -> [String: Any] {
-        GlassEffectPipeline.shared.evaluateQuality()
+    @objc public func effectPipelineQualityJSON() -> String {
+        let q = GlassEffectPipeline.shared.evaluateQuality()
+        guard let data = try? JSONSerialization.data(withJSONObject: q, options: []),
+              let s = String(data: data, encoding: .utf8) else { return "{}" }
+        return s
     }
 
     @objc public func hasNativeUIGlass() -> Bool {

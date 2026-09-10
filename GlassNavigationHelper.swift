@@ -22,7 +22,7 @@ import UIKit
         appearance.shadowImage = UIImage()
 
         if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
-            appearance.backgroundEffect = GlassLiquidEngine.shared.effectMatchingPreferences(dark: isDark)
+            appearance.backgroundEffect = GlassLiquidEngine.shared.blurEffectMatchingPreferences(dark: isDark)
             let a = (isDark ? 0.04 : 0.08) * intensity * prefs.opacity
             appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.18, a))
         } else {
@@ -75,7 +75,7 @@ import UIKit
         appearance.shadowImage = UIImage()
 
         if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
-            appearance.backgroundEffect = GlassLiquidEngine.shared.effectMatchingPreferences(dark: isDark)
+            appearance.backgroundEffect = GlassLiquidEngine.shared.blurEffectMatchingPreferences(dark: isDark)
             let a = (isDark ? 0.05 : 0.09) * intensity * prefs.opacity
             appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.20, a))
         } else {

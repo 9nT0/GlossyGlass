@@ -14,7 +14,7 @@ import ObjectiveC
 
     @objc public static func capabilityReport() -> String {
         guard let cstr = GGPrivate_CapabilityReport() else { return "unavailable" }
-        return cstr
+        return cstr as String
     }
 
     @objc public static func makeGlassEffect(clear: Bool) -> UIVisualEffect? {

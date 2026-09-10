@@ -13,7 +13,7 @@ private func _gg_dyld_get_image_name(_ i: UInt32) -> UnsafePointer<CChar>?
 
     private var lastReport: [String: Any] = [:]
 
-    @objc public func scan() -> [String: Any] {
+    public func scan() -> [String: Any] {
         var report: [String: Any] = [:]
         report["bundle"] = Bundle.main.bundleIdentifier ?? ""
         report["app"] = GlassAppSupport.shared.appName

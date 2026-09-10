@@ -37,6 +37,23 @@ import CoreImage
         return e
     }
 
+    
+    /// UIBar appearance requires UIBlurEffect specifically (not generic UIVisualEffect).
+    @objc public func blurEffectMatchingPreferences(dark: Bool) -> UIBlurEffect {
+        let prefs = GlassPreferences.shared
+        if prefs.lightweightMode || prefs.style.lowercased() == "clear" {
+            return UIBlurEffect(style: dark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
+        }
+        switch prefs.style.lowercased() {
+        case "tinted":
+            return UIBlurEffect(style: dark ? .systemMaterialDark : .systemMaterialLight)
+        case "liquid":
+            return UIBlurEffect(style: dark ? .systemThinMaterialDark : .systemThinMaterialLight)
+        default:
+            return UIBlurEffect(style: dark ? .systemThinMaterialDark : .systemThinMaterialLight)
+        }
+    }
+
     @objc public func effectMatchingPreferences(dark: Bool) -> UIVisualEffect {
         let prefs = GlassPreferences.shared
         let kind: MaterialKind
