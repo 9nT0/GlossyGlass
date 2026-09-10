@@ -11,7 +11,7 @@ import UIKit
         public let kind: String
     }
 
-    @objc public func findBestButtonHost() -> (view: UIView, score: Int)? {
+    public func findBestButtonHost() -> (view: UIView, score: Int)? {
         let hits = scanButtonHosts()
         guard let best = hits.max(by: { $0.score < $1.score }), best.score >= 16 else { return nil }
         return (best.view, best.score)

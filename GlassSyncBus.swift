@@ -7,6 +7,13 @@ import Foundation
 
     private var lastToken: UInt64 = 0
 
+    @objc public func requestSync(reason: String = "") {
+        if !reason.isEmpty {
+            NSLog("[GlossyGlass] SyncBus requestSync %@", reason)
+        }
+        publishPreferencesChanged()
+    }
+
     @objc public func publishPreferencesChanged() {
         lastToken &+= 1
         let token = lastToken
