@@ -60,6 +60,13 @@ import UIKit
 
         let name = NSStringFromClass(type(of: view))
         let lower = name.lowercased()
+        // Skip inner chrome content / non-hosts
+        if lower.contains("contentview") || lower.contains("buttonbar")
+            || lower.contains("stackview") || lower.contains("layoutguide")
+            || lower.contains("visualeffect") || lower.contains("transitionview") {
+            for s in view.subviews { collect(s, depth: depth + 1, hits: &hits, seen: &seen) }
+            return
+        }
         let frame = view.convert(view.bounds, to: nil)
         guard let win = view.window else {
             for s in view.subviews { collect(s, depth: depth + 1, hits: &hits, seen: &seen) }

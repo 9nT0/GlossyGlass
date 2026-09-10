@@ -1,8 +1,6 @@
 import UIKit
 
-/// Owns Instagram chrome visually: strips stock bar fills and installs
-/// GlossyGlass materials as the real background of detected chrome surfaces.
-/// Settings button stays separate. Content (feed/posts) stays visible.
+/// Owns Instagram chrome: strip stock fills, install visible GG glass on real bars only.
 @objc public final class GlassChromeShell: NSObject {
 
     @objc public static let shared = GlassChromeShell()
@@ -12,7 +10,8 @@ import UIKit
     private var lastPass: TimeInterval = 0
     private(set) var chromeAttached = false
     private(set) var surfacesApplied: [String: Int] = [:]
-    private var trackedBars = NSHashTable<UIView>.weakObjects()
+    private let materialTag = 0x4747_4D41
+    private let tintTag = 0x4747_544E
 
     private override init() { super.init() }
 
@@ -26,11 +25,10 @@ import UIKit
                 ) { [weak self] _ in self?.reassert() }
             }
             self.timer?.invalidate()
-            // Calm cadence — not thrashing every frame
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
                 self?.reassert()
             }
-            for d in [0.6, 1.5, 3.0, 6.0, 12.0] as [TimeInterval] {
+            for d in [0.4, 1.0, 2.0, 4.0, 8.0] as [TimeInterval] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + d) { self.reassert() }
             }
             self.reassert()
@@ -44,135 +42,120 @@ import UIKit
             return
         }
         let now = CFAbsoluteTimeGetCurrent()
-        if now - lastPass < 0.35 { return }
+        if now - lastPass < 0.25 { return }
         lastPass = now
-
-        var applied = 0
-        surfacesApplied.removeAll()
 
         GlassSurfaceRouter.shared.refresh()
         let surface = GlassSurfaceRouter.shared.activeSurface
+        var applied = 0
+        surfacesApplied.removeAll()
 
-        // Prefer locator hits first (multi-strategy)
-        for hit in GlassLocator.shared.scanChromeHosts().prefix(12) {
-            let role: GlassChromeRole
-            let k = hit.kind.lowercased()
-            if k.contains("tab") || k.contains("bottom") { role = .tab }
-            else if k.contains("nav") || k.contains("top") || k.contains("header") { role = .header }
-            else { role = hit.view is UITabBar ? .tab : (hit.view is UINavigationBar ? .nav : .header) }
-            if role == .tab && !GlassPreferences.shared.styleTabBar { continue }
-            if (role == .nav || role == .header) && !GlassPreferences.shared.styleNavigationBar { continue }
+        // Only high-quality host hits — never inner content views
+        let hits = GlassLocator.shared.scanChromeHosts().filter { isClaimableHost($0) }
+        var claimedIDs = Set<ObjectIdentifier>()
+
+        for hit in hits.prefix(10) {
+            let id = ObjectIdentifier(hit.view)
+            guard !claimedIDs.contains(id) else { continue }
+            // Prefer outermost bar — skip if superview already claimed as same role
+            if let parent = hit.view.superview, claimedIDs.contains(ObjectIdentifier(parent)) {
+                continue
+            }
+            let role = roleFor(hit)
+            if role == .tab && !prefs.styleTabBar { continue }
+            if (role == .nav || role == .header) && !prefs.styleNavigationBar { continue }
+
             stripAndGlass(hit.view, role: role, surface: surface)
+            claimedIDs.insert(id)
             applied += 1
             surfacesApplied[hit.kind, default: 0] += 1
         }
 
+        // Walk for plain UITabBar / UINavigationBar not in locator list
         for window in GlassAppSupport.allWindows() {
-            applied += claimChrome(in: window, depth: 0, surface: surface)
+            applied += claimUIKitBars(in: window, depth: 0, surface: surface, claimed: &claimedIDs)
         }
 
         chromeAttached = applied > 0
-        if chromeAttached {
-            GlassDiagnostics.shared.recordChrome(
-                surfaces: applied,
-                map: surfacesApplied,
-                note: "Chrome claimed"
-            )
-        }
+        GlassDiagnostics.shared.recordChrome(
+            surfaces: applied,
+            map: surfacesApplied,
+            note: applied > 0 ? "Chrome claimed visible" : "No claimable hosts"
+        )
     }
 
-    /// Walk hierarchy: strip stock fills, install GG material layers on real chrome only.
-    @discardableResult
-    private func claimChrome(in view: UIView, depth: Int, surface: GlassSurfaceKind) -> Int {
-        guard depth < 20 else { return 0 }
-        var count = 0
+    private func isClaimableHost(_ hit: GlassLocator.HostHit) -> Bool {
+        let name = NSStringFromClass(type(of: hit.view))
+        let lower = name.lowercased()
+        // NEVER claim inner content / layout helpers
+        let banned = [
+            "contentview", "buttonbar", "stackview", "layoutguide",
+            "visualeffect", "transitionview", "wrapper", "backgroundview",
+            "modernbar", "platter", "shadow", "label", "imageview",
+            "uibutton", "uicontrol", "scrollview"
+        ]
+        if banned.contains(where: { lower.contains($0) }) { return false }
+        // Prefer real bars
+        if hit.view is UITabBar || hit.view is UINavigationBar { return true }
+        if lower.contains("igtabbar") || lower.contains("ignavigationbar") { return true }
+        if hit.kind.hasPrefix("NameTab") || hit.kind.hasPrefix("NameNav") { return true }
+        if hit.kind.hasPrefix("GeoBottom") || hit.kind.hasPrefix("AXTab") { return true }
+        if hit.kind.hasPrefix("UINavigationBar") || hit.kind.hasPrefix("UITabBar") { return true }
+        // Skip low-score noise
+        return hit.score >= 70
+    }
+
+    private func roleFor(_ hit: GlassLocator.HostHit) -> GlassChromeRole {
+        if hit.view is UITabBar { return .tab }
+        if hit.view is UINavigationBar { return .nav }
+        let k = hit.kind.lowercased()
+        if k.contains("tab") || k.contains("bottom") { return .tab }
+        if k.contains("nav") || k.contains("header") || k.contains("top") { return .nav }
+        // Geometry fallback
+        if let win = hit.view.window {
+            let f = hit.view.convert(hit.view.bounds, to: nil)
+            if f.maxY > win.bounds.height - 120 { return .tab }
+        }
+        return .header
+    }
+
+    private func claimUIKitBars(in view: UIView, depth: Int, surface: GlassSurfaceKind, claimed: inout Set<ObjectIdentifier>) -> Int {
+        guard depth < 16 else { return 0 }
+        var n = 0
         let prefs = GlassPreferences.shared
-
-        if let nav = view as? UINavigationBar, prefs.styleNavigationBar {
-            stripAndGlass(nav, role: .nav, surface: surface)
-            count += 1
-            surfacesApplied["nav", default: 0] += 1
-        }
-        if let tab = view as? UITabBar, prefs.styleTabBar {
-            stripAndGlass(tab, role: .tab, surface: surface)
-            count += 1
-            surfacesApplied["tab", default: 0] += 1
-        }
-
-        // Custom IG chrome by geometry + name (not every bottom view)
-        if shouldClaimCustom(view) {
-            let role: GlassChromeRole = isBottomChrome(view) ? .tab : .header
-            if role == .tab && prefs.styleTabBar {
-                stripAndGlass(view, role: role, surface: surface)
-                count += 1
-                surfacesApplied["ig_tab", default: 0] += 1
-            } else if role == .header && prefs.styleNavigationBar {
-                stripAndGlass(view, role: role, surface: surface)
-                count += 1
-                surfacesApplied["ig_header", default: 0] += 1
+        let id = ObjectIdentifier(view)
+        if !claimed.contains(id) {
+            if let tab = view as? UITabBar, prefs.styleTabBar {
+                stripAndGlass(tab, role: .tab, surface: surface)
+                claimed.insert(id)
+                n += 1
+                surfacesApplied["UITabBar", default: 0] += 1
+            } else if let nav = view as? UINavigationBar, prefs.styleNavigationBar {
+                stripAndGlass(nav, role: .nav, surface: surface)
+                claimed.insert(id)
+                n += 1
+                surfacesApplied["UINavigationBar", default: 0] += 1
             }
         }
-
-        for sub in view.subviews {
-            count += claimChrome(in: sub, depth: depth + 1, surface: surface)
+        for s in view.subviews {
+            n += claimUIKitBars(in: s, depth: depth + 1, surface: surface, claimed: &claimed)
         }
-        return count
-    }
-
-    private func shouldClaimCustom(_ view: UIView) -> Bool {
-        if view is UINavigationBar || view is UITabBar { return false }
-        if view is UIButton || view is UILabel || view is UIImageView { return false }
-        if view is GlassSettingsButton { return false }
-        let name = NSStringFromClass(type(of: view)).lowercased()
-        let frame = view.convert(view.bounds, to: nil)
-        guard let win = view.window else { return false }
-        let h = frame.height
-        let w = frame.width
-        guard w > win.bounds.width * 0.55 else { return false }
-        guard h > 36 && h < 100 else { return false }
-
-        let nameHit =
-            name.contains("tabbar") || name.contains("igtab") ||
-            name.contains("navbar") || name.contains("navigationbar") ||
-            name.contains("igheader") || name.contains("headerbar") ||
-            name.contains("bottombar") || name.contains("tabcontroller")
-
-        let bottom = frame.maxY > win.bounds.height - 110
-        let top = frame.minY < 120
-
-        // Strict: name hit OR (bottom bar-like with multiple controls)
-        if nameHit { return true }
-        if bottom {
-            let controls = view.subviews.filter { $0 is UIControl || $0 is UIButton }.count
-            return controls >= 3 && controls <= 7
-        }
-        if top && name.contains("header") { return true }
-        return false
-    }
-
-    private func isBottomChrome(_ view: UIView) -> Bool {
-        guard let win = view.window else { return false }
-        let frame = view.convert(view.bounds, to: nil)
-        return frame.maxY > win.bounds.height - 110
+        return n
     }
 
     private func stripAndGlass(_ view: UIView, role: GlassChromeRole, surface: GlassSurfaceKind) {
-        trackedBars.add(view)
-        let exclusive = GlassPreferences.shared.exclusiveChrome
+        let prefs = GlassPreferences.shared
+        let exclusive = prefs.exclusiveChrome
+        let recipe = GlassSurfaceRouter.shared.recipe(for: surface, role: role)
+        let isDark = view.traitCollection.userInterfaceStyle == .dark
+            || prefs.style.lowercased() != "clear" // IG is usually dark chrome
 
-        // 1) Hard strip stock fills / competing effects
+        // --- HARD STRIP ---
         view.backgroundColor = .clear
         view.layer.backgroundColor = UIColor.clear.cgColor
         view.layer.borderWidth = 0
         view.layer.shadowOpacity = 0
-        if exclusive {
-            // Remove foreign visual effect views (except our tagged material)
-            for sub in view.subviews {
-                if let ve = sub as? UIVisualEffectView, sub.tag != 0x4747_4D41 {
-                    ve.removeFromSuperview()
-                }
-            }
-        }
+
         if let tab = view as? UITabBar {
             let a = UITabBarAppearance()
             a.configureWithTransparentBackground()
@@ -186,43 +169,97 @@ import UIKit
             tab.barTintColor = .clear
             tab.backgroundImage = UIImage()
             tab.shadowImage = UIImage()
+            tab.barStyle = .black
         }
         if let nav = view as? UINavigationBar {
-            GlassNavigationHelper.applyNavigationBarStyle(to: nav)
-            return
+            let a = UINavigationBarAppearance()
+            a.configureWithTransparentBackground()
+            a.backgroundEffect = nil
+            a.backgroundColor = .clear
+            a.shadowColor = .clear
+            a.shadowImage = UIImage()
+            nav.standardAppearance = a
+            nav.scrollEdgeAppearance = a
+            nav.compactAppearance = a
+            if #available(iOS 15.0, *) {
+                nav.compactScrollEdgeAppearance = a
+            }
+            nav.isTranslucent = true
+            nav.barTintColor = .clear
+            nav.backgroundColor = .clear
+            nav.setBackgroundImage(UIImage(), for: .default)
+            nav.shadowImage = UIImage()
         }
 
-        // 2) Install single material layer (tag-guarded, not a window overlay)
-        let tag = 0x4747_4D41 // GGMA material
-        let recipe = GlassSurfaceRouter.shared.recipe(for: surface, role: role)
-        let isDark = view.traitCollection.userInterfaceStyle == .dark
-
-        if let existing = view.viewWithTag(tag) as? UIVisualEffectView {
-            existing.effect = recipe.blurEffect(dark: isDark)
-            existing.alpha = recipe.opacity
-            return
+        if exclusive {
+            for sub in view.subviews {
+                let sn = NSStringFromClass(type(of: sub)).lowercased()
+                if sub.tag == materialTag || sub.tag == tintTag { continue }
+                // Remove stock background plates
+                if sub is UIVisualEffectView {
+                    (sub as? UIVisualEffectView)?.removeFromSuperview()
+                    continue
+                }
+                if sn.contains("background") || sn.contains("barbackground") || sn.contains("_uibar") {
+                    sub.backgroundColor = .clear
+                    sub.isHidden = false
+                    sub.alpha = 1
+                    // clear but keep for layout
+                }
+            }
         }
 
-        let effect = recipe.blurEffect(dark: isDark)
-        let blur = UIVisualEffectView(effect: effect)
-        blur.tag = tag
-        blur.isUserInteractionEnabled = false
-        blur.translatesAutoresizingMaskIntoConstraints = false
-        blur.alpha = recipe.opacity
-        view.insertSubview(blur, at: 0)
-        NSLayoutConstraint.activate([
-            blur.topAnchor.constraint(equalTo: view.topAnchor),
-            blur.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            blur.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            blur.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
+        // --- VISIBLE MATERIAL (must be obvious) ---
+        let effect = recipe.blurEffect(dark: true) // IG chrome is dark-first
+        let blur: UIVisualEffectView
+        if let existing = view.viewWithTag(materialTag) as? UIVisualEffectView {
+            blur = existing
+            blur.effect = effect
+        } else {
+            blur = UIVisualEffectView(effect: effect)
+            blur.tag = materialTag
+            blur.isUserInteractionEnabled = false
+            blur.translatesAutoresizingMaskIntoConstraints = false
+            view.insertSubview(blur, at: 0)
+            NSLayoutConstraint.activate([
+                blur.topAnchor.constraint(equalTo: view.topAnchor),
+                blur.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                blur.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                blur.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            ])
+        }
+        // Boost visibility: never nearly-invisible
+        blur.alpha = max(0.82, min(1.0, recipe.opacity))
 
-        // Continuous corners only on bottom custom chrome (not full-width nav)
+        // Tint plate so glass reads on pure black IG bars
+        let tint: UIView
+        if let existing = view.viewWithTag(tintTag) {
+            tint = existing
+        } else {
+            tint = UIView()
+            tint.tag = tintTag
+            tint.isUserInteractionEnabled = false
+            tint.translatesAutoresizingMaskIntoConstraints = false
+            view.insertSubview(tint, at: 1)
+            NSLayoutConstraint.activate([
+                tint.topAnchor.constraint(equalTo: view.topAnchor),
+                tint.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                tint.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                tint.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            ])
+        }
+        let baseAlpha: CGFloat
+        switch recipe.style.lowercased() {
+        case "clear": baseAlpha = 0.28
+        case "tinted": baseAlpha = 0.45
+        case "liquid", "heavy": baseAlpha = 0.38
+        default: baseAlpha = 0.35 // frosted
+        }
+        tint.backgroundColor = UIColor.white.withAlphaComponent(baseAlpha * recipe.intensity)
+
         if role == .tab {
-            GlassPrivateBridge.setContinuousCorners(view, radius: min(22, view.bounds.height * 0.35))
+            GlassPrivateBridge.setContinuousCorners(view, radius: 0) // full width, no pill box
         }
-        view.layer.borderWidth = 0
-        view.layer.shadowOpacity = 0
     }
 }
 
