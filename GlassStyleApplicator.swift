@@ -27,6 +27,7 @@ import UIKit
                 }
             }
             applyAll()
+            GlassLiquidTabBar.shared.start()
         }
     }
 
@@ -67,6 +68,7 @@ import UIKit
         for window in GlassAppSupport.allWindows() {
             walk(window, depth: 0)
         }
+        GlassLiquidTabBar.shared.refresh()
     }
 
     private static func walk(_ view: UIView, depth: Int) {

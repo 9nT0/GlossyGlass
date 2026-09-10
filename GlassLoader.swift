@@ -55,6 +55,7 @@ import UIKit
                 GlassDeviceProfiler.applyIfNeeded()
                 GlassInjector.start()
                 GlassStyleApplicator.start()
+                GlassLiquidTabBar.shared.start()
                 GlassScreenProfileMonitor.start()
                 GlassWelcome.presentIfNeeded()
                 GlassFirstLaunch.checkAndShowIfNeeded()
@@ -101,6 +102,7 @@ import UIKit
             GlassAppSupport.shared.refreshDetection()
             GlassInjector.start()
             GlassStyleApplicator.start()
+                GlassLiquidTabBar.shared.start()
             GlassScreenProfileMonitor.start()
             GlassWelcome.presentIfNeeded()
             GlassFirstLaunch.checkAndShowIfNeeded()
@@ -112,6 +114,7 @@ import UIKit
             GlassDeviceProfiler.applyIfNeeded()
             GlassInjector.start()
             GlassStyleApplicator.start()
+                GlassLiquidTabBar.shared.start()
         }
     }
 

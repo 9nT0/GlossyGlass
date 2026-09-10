@@ -64,32 +64,21 @@ import UIKit
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, prefs.styleTabBar, !prefs.safeMode else { return }
 
-        let isDark = tabBar.traitCollection.userInterfaceStyle == .dark
-        let intensity = effectiveIntensity(isDark: isDark, prefs: prefs)
-
+        // Stock bar is interaction-only. Visual chrome is GlassLiquidTabBar capsule.
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = nil
+        appearance.backgroundColor = .clear
         appearance.shadowColor = .clear
         appearance.shadowImage = UIImage()
-
-        if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
-            let style = blurStyle(isDark: isDark, prefs: prefs)
-            appearance.backgroundEffect = UIBlurEffect(style: style)
-            let alpha = (isDark ? 0.05 : 0.09) * intensity * prefs.opacity
-            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.20, alpha))
-        } else {
-            appearance.backgroundEffect = nil
-            appearance.backgroundColor = UIColor.secondarySystemBackground
-                .withAlphaComponent(0.92 * prefs.opacity)
-        }
 
         let item = UITabBarItemAppearance()
         let fontN = UIFont.systemFont(ofSize: 10, weight: .medium)
         let fontS = UIFont.systemFont(ofSize: 10, weight: .semibold)
-        item.normal.iconColor = UIColor.label.withAlphaComponent(0.40)
+        item.normal.iconColor = UIColor.label.withAlphaComponent(0.55)
         item.selected.iconColor = .label
         item.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.label.withAlphaComponent(0.40),
+            .foregroundColor: UIColor.label.withAlphaComponent(0.55),
             .font: fontN
         ]
         item.selected.titleTextAttributes = [
@@ -105,19 +94,10 @@ import UIKit
         tabBar.isTranslucent = true
         tabBar.backgroundColor = .clear
         tabBar.barTintColor = .clear
-
-        // Soft continuous top corners only (island feel) — not a full floating box
-        tabBar.clipsToBounds = false
-        tabBar.layer.cornerRadius = 22
-        tabBar.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        tabBar.layer.cornerCurve = .continuous
-        tabBar.layer.borderWidth = prefs.edgeHighlightEnabled ? 0.45 : 0
-        tabBar.layer.borderColor = UIColor.white
-            .withAlphaComponent(isDark ? 0.14 * intensity : 0.28 * intensity).cgColor
-        tabBar.layer.shadowColor = UIColor.black.cgColor
-        tabBar.layer.shadowOpacity = prefs.lightweightMode ? 0.05 : 0.10
-        tabBar.layer.shadowRadius = 16
-        tabBar.layer.shadowOffset = CGSize(width: 0, height: -2)
+        tabBar.layer.cornerRadius = 0
+        tabBar.layer.borderWidth = 0
+        tabBar.layer.shadowOpacity = 0
+        // Keep hit targets; liquid capsule is drawn above as visual only
     }
 
     // MARK: - Helpers

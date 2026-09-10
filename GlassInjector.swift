@@ -398,14 +398,12 @@ import UIKit
         btn.translatesAutoresizingMaskIntoConstraints = false
         window.addSubview(btn)
 
-        let saved = GlassPreferences.shared.lastButtonPoint
-        let topC: CGFloat = (saved.y > 40 && saved.y < 200) ? min(max(48, saved.y - 20), 120) : 56
-
+        // Bottom-trailing above tab island — never cover story tray / top chrome
         NSLayoutConstraint.activate([
-            btn.topAnchor.constraint(equalTo: window.safeAreaLayoutGuide.topAnchor, constant: topC),
-            btn.trailingAnchor.constraint(equalTo: window.safeAreaLayoutGuide.trailingAnchor, constant: -14),
-            btn.heightAnchor.constraint(equalToConstant: 34),
-            btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 60)
+            btn.trailingAnchor.constraint(equalTo: window.safeAreaLayoutGuide.trailingAnchor, constant: -12),
+            btn.bottomAnchor.constraint(equalTo: window.safeAreaLayoutGuide.bottomAnchor, constant: -72),
+            btn.heightAnchor.constraint(equalToConstant: 32),
+            btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 56)
         ])
 
         let hold = GlassOpenSettingsLongPress()
