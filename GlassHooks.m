@@ -297,9 +297,7 @@ static void GG_InstallHooks(void) {
     GG_SafeSwizzleInstance([UIViewController class],
                            @selector(viewDidAppear:),
                            @selector(gg_viewDidAppear:));
-    GG_SafeSwizzleInstance([UIViewController class],
-                           @selector(viewDidLayoutSubviews),
-                           @selector(gg_viewDidLayoutSubviews));
+    // viewDidLayoutSubviews swizzle disabled for launch stability
 
     // Bars — layoutSubviews only (UITabBar/UINavigationBar implement it). NO didMoveToWindow.
     GG_SafeSwizzleInstance([UINavigationBar class],
@@ -309,9 +307,7 @@ static void GG_InstallHooks(void) {
                            @selector(layoutSubviews),
                            @selector(gg_layoutSubviews));
 
-    GG_SafeSwizzleInstance([UIWindow class],
-                           @selector(makeKeyAndVisible),
-                           @selector(gg_makeKeyAndVisible));
+    // makeKeyAndVisible swizzle disabled — caused launch instability under LC
 
     GG_SafeSwizzleInstance([UINavigationController class],
                            @selector(pushViewController:animated:),
@@ -326,25 +322,22 @@ static void GG_InstallHooks(void) {
 
 __attribute__((constructor))
 static void GG_HooksConstructor(void) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        GG_InstallHooks();
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        GG_HookAllIGClasses();
-        GG_SafeApply();
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        GG_HookAllIGClasses();
-        GG_SafeApply();
-        GG_SafeInject();
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        GG_HookAllIGClasses();
-        GG_SafeApply();
-    });
+    // Do NOT install hooks at image load — wait for GlassHooks_Install from safe loader.
+    NSLog(@"[GlossyGlass] hooks ctor idle (wait for install)");
 }
 
 void GlassHooks_Install(void) {
-    GG_InstallHooks();
-    GG_HookAllIGClasses();
+    @try {
+        GG_InstallHooks();
+        GG_HookAllIGClasses();
+        // Re-hook IG classes as they appear late in containers
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            @try { GG_HookAllIGClasses(); } @catch (__unused NSException *e) {}
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            @try { GG_HookAllIGClasses(); GG_SafeApply(); } @catch (__unused NSException *e) {}
+        });
+    } @catch (NSException *ex) {
+        NSLog(@"[GlossyGlass] GlassHooks_Install exception: %@", ex);
+    }
 }
