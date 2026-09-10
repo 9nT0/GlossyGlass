@@ -1,3 +1,4 @@
+
 <p align="center">
   <img src="Cover.jpg" alt="GlossyGlass" width="100%"/>
 </p>
