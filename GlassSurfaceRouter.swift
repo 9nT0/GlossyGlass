@@ -116,57 +116,61 @@ public struct GlassSurfaceRecipe {
     }
 
     private func detect() -> GlassSurfaceKind {
-        // 1) Tab bar selected index (works with custom IG tab controllers that still expose selectedIndex)
+        // 1) Top VC / chain names (safe — no KVC)
+        if let top = GlassAppSupport.topViewController() {
+            let names = vcChainNames(top) + [NSStringFromClass(type(of: top))]
+            let blob = names.joined(separator: " ").lowercased()
+
+            if blob.contains("direct") || blob.contains("inbox") || blob.contains("thread")
+                || blob.contains("message") || blob.contains("igdirect") {
+                return .messages
+            }
+            if blob.contains("reel") || blob.contains("clips") || blob.contains("sundial")
+                || blob.contains("igvideo") {
+                return .reels
+            }
+            if blob.contains("profile") || blob.contains("userdetail") || blob.contains("selfprofile")
+                || blob.contains("igprofile") {
+                return .profile
+            }
+            if blob.contains("explore") || blob.contains("search") || blob.contains("discover") {
+                return .explore
+            }
+            if blob.contains("story") || blob.contains("stories") {
+                return .story
+            }
+            if blob.contains("feed") || blob.contains("home") || blob.contains("mainfeed")
+                || blob.contains("ighome") {
+                return .feed
+            }
+            if let tab = top.tabBarController ?? (top as? UITabBarController) {
+                return mapTabIndex(tab.selectedIndex)
+            }
+        }
+
+        // 2) Only real UITabBarController instances in hierarchy (no KVC)
         for w in GlassAppSupport.allWindows() {
             if let kind = detectFromTabIn(w) { return kind }
-        }
-
-        guard let top = GlassAppSupport.topViewController() else { return .unknown }
-        let names = vcChainNames(top) + [NSStringFromClass(type(of: top))]
-        let blob = names.joined(separator: " ").lowercased()
-
-        if blob.contains("direct") || blob.contains("inbox") || blob.contains("thread")
-            || blob.contains("message") || blob.contains("igdirect") {
-            return .messages
-        }
-        if blob.contains("reel") || blob.contains("clips") || blob.contains("sundial")
-            || blob.contains("igvideo") {
-            return .reels
-        }
-        if blob.contains("profile") || blob.contains("userdetail") || blob.contains("selfprofile")
-            || blob.contains("igprofile") {
-            return .profile
-        }
-        if blob.contains("explore") || blob.contains("search") || blob.contains("discover") {
-            return .explore
-        }
-        if blob.contains("story") || blob.contains("stories") {
-            return .story
-        }
-        if blob.contains("feed") || blob.contains("home") || blob.contains("mainfeed")
-            || blob.contains("ighome") {
-            return .feed
-        }
-
-        if let tab = top.tabBarController ?? (top as? UITabBarController) {
-            return mapTabIndex(tab.selectedIndex)
         }
         return .unknown
     }
 
     private func detectFromTabIn(_ view: UIView) -> GlassSurfaceKind? {
+        // Only real UITabBarController — never KVC selectedIndex on random IG views
+        // (IGTabBarControllerSwipeCollectionView crashes on value(forKey: "selectedIndex"))
         if let tab = view as? UITabBarController {
             return mapTabIndex(tab.selectedIndex)
         }
-        if let tab = view as? UITabBar, let vc = tab.delegate as? UITabBarController {
+        if let bar = view as? UITabBar, let vc = bar.delegate as? UITabBarController {
             return mapTabIndex(vc.selectedIndex)
         }
-        // IGTabBar — try KVC selectedIndex / selectedItem
-        let name = NSStringFromClass(type(of: view)).lowercased()
-        if name.contains("tabbar") {
-            if let idx = view.value(forKey: "selectedIndex") as? Int {
-                return mapTabIndex(idx)
-            }
+        // Safe limited walk — skip collection views / scroll views
+        if view is UICollectionView || view is UIScrollView || view is UITableView {
+            return nil
+        }
+        let name = NSStringFromClass(type(of: view))
+        if name.contains("Swipe") || name.contains("Collection") || name.contains("Scroll") {
+            return nil
         }
         for s in view.subviews {
             if let k = detectFromTabIn(s) { return k }
