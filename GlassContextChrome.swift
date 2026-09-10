@@ -1,7 +1,7 @@
 import UIKit
 
-/// Styles native IG context menus / reaction bars / sheets when they appear.
-/// Does not replace actions — only visual material on discovered surfaces.
+/// Styles native IG context menus / reaction bars when they appear.
+/// Never nests UIVisualEffectView inside UIVisualEffectView (UIKit throws).
 @objc public final class GlassContextChrome: NSObject {
 
     @objc public static let shared = GlassContextChrome()
@@ -9,6 +9,7 @@ import UIKit
     private var observer: NSObjectProtocol?
     private var timer: Timer?
     private let materialTag = 0x4747_4358 // GGCX
+    private let tintTag = 0x4747_4359
 
     private override init() { super.init() }
 
@@ -22,7 +23,7 @@ import UIKit
                 ) { [weak self] _ in self?.scan() }
             }
             self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
                 self?.scan()
             }
             self.scan()
@@ -32,54 +33,52 @@ import UIKit
     @objc public func scan() {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
-
         for w in GlassAppSupport.allWindows() {
             walk(w, depth: 0)
         }
     }
 
     private func walk(_ view: UIView, depth: Int) {
-        guard depth < 16 else { return }
+        guard depth < 14 else { return }
+        // Never recurse into our own material or into effect content carelessly
+        if view.tag == materialTag || view.tag == tintTag { return }
+
         let name = NSStringFromClass(type(of: view))
         let lower = name.lowercased()
 
-        // Reaction bars, context menus, action sheets, plattters
+        // Skip our chrome plates
+        if view.tag == 0x4747_4D41 || view.tag == 0x4747_504C { return }
+
         let isMenu =
             lower.contains("contextmenu")
-            || lower.contains("uimenu")
             || lower.contains("actionsheet")
-            || lower.contains("preview")
             || lower.contains("platter")
             || lower.contains("reaction")
-            || lower.contains("emoji")
-            || lower.contains("popover")
             || lower.contains("_uicontext")
-            || lower.contains("uiglass")
-            || (lower.contains("sheet") && view.bounds.height < 420 && view.bounds.width > 120)
+            || lower.contains("popover")
 
-        // Compact horizontal reaction-style bars
         let isReactionBar =
             view.bounds.height > 36 && view.bounds.height < 72
             && view.bounds.width > 180 && view.bounds.width < 420
             && view.layer.cornerRadius >= 12
-            && (view.backgroundColor != nil || view is UIVisualEffectView)
 
-        if isMenu || isReactionBar {
+        let isComposer =
+            lower.contains("composer") || lower.contains("inputtoolbar")
+            || lower.contains("messageinput") || lower.contains("chatbar")
+
+        if isMenu || isReactionBar || isComposer {
             applyGlass(to: view, compact: isReactionBar || view.bounds.height < 80)
         }
 
-        // DM composer / input bar
-        if lower.contains("composer") || lower.contains("inputtoolbar")
-            || lower.contains("messageinput") || lower.contains("chatbar") {
-            applyGlass(to: view, compact: true)
+        for s in view.subviews {
+            // Do not walk into UIVisualEffectView.contentView children for applying
+            // but still walk siblings
+            walk(s, depth: depth + 1)
         }
-
-        for s in view.subviews { walk(s, depth: depth + 1) }
     }
 
     private func applyGlass(to view: UIView, compact: Bool) {
         if view.viewWithTag(materialTag) != nil { return }
-        // Don't touch if already a UIVisualEffectView we own elsewhere
         if view is GlassSettingsButton { return }
 
         let prefs = GlassPreferences.shared
@@ -89,7 +88,20 @@ import UIKit
             intensity: max(0.55, prefs.intensity)
         )
 
-        // Neutralize flat black fill
+        // CRITICAL: never add UIVisualEffectView as subview of UIVisualEffectView
+        if let existing = view as? UIVisualEffectView {
+            existing.effect = effect
+            existing.alpha = max(0.88, prefs.opacity)
+            if compact {
+                existing.layer.cornerRadius = min(22, max(14, existing.bounds.height * 0.45))
+                if #available(iOS 13.0, *) { existing.layer.cornerCurve = .continuous }
+                existing.clipsToBounds = true
+            }
+            // Tint goes on contentView only
+            addTint(to: existing.contentView, intensity: prefs.intensity)
+            return
+        }
+
         view.backgroundColor = .clear
         view.isOpaque = false
 
@@ -106,20 +118,37 @@ import UIKit
         ])
 
         if compact {
-            view.layer.cornerRadius = min(22, max(14, view.bounds.height * 0.45))
+            let r = min(22, max(14, view.bounds.height * 0.45))
+            view.layer.cornerRadius = r
             if #available(iOS 13.0, *) { view.layer.cornerCurve = .continuous }
             view.clipsToBounds = true
-            blur.layer.cornerRadius = view.layer.cornerRadius
+            blur.layer.cornerRadius = r
             blur.clipsToBounds = true
         }
 
-        // Soft rim
         view.layer.borderWidth = 0.4
         view.layer.borderColor = UIColor.white.withAlphaComponent(0.22 * prefs.intensity).cgColor
 
-        // Raise content
+        addTint(to: blur.contentView, intensity: prefs.intensity)
+
         for sub in view.subviews where sub.tag != materialTag {
             view.bringSubviewToFront(sub)
         }
+    }
+
+    private func addTint(to contentView: UIView, intensity: CGFloat) {
+        if contentView.viewWithTag(tintTag) != nil { return }
+        let tint = UIView()
+        tint.tag = tintTag
+        tint.isUserInteractionEnabled = false
+        tint.backgroundColor = UIColor.white.withAlphaComponent(0.12 * intensity)
+        tint.translatesAutoresizingMaskIntoConstraints = false
+        contentView.insertSubview(tint, at: 0)
+        NSLayoutConstraint.activate([
+            tint.topAnchor.constraint(equalTo: contentView.topAnchor),
+            tint.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            tint.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            tint.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
     }
 }
