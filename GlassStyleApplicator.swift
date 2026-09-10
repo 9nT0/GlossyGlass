@@ -1,0 +1,141 @@
+import UIKit
+
+/// Applies glass only through real bar appearance APIs + light in-place polish.
+/// Does NOT insert floating blur overlays into random bottom/top chrome (that broke DM/story).
+@objc public class GlassStyleApplicator: NSObject {
+
+    private static var started = false
+    private static var timer: Timer?
+    private static var observer: NSObjectProtocol?
+
+    @objc public static func start() {
+        DispatchQueue.main.async {
+            if !started {
+                started = true
+                observer = NotificationCenter.default.addObserver(
+                    forName: .glassPreferencesDidChange,
+                    object: nil,
+                    queue: .main
+                ) { _ in applyAll() }
+
+                timer?.invalidate()
+                timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+                    applyAll()
+                }
+                for d in [0.4, 1.2, 3.0, 7.0] as [TimeInterval] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + d) { applyAll() }
+                }
+                GlassChromeShell.shared.start()
+            GlassLiquidTabBar.shared.start()
+            }
+            applyAll()
+        }
+    }
+
+    @objc public static func applyToViewController(_ vc: UIViewController) {
+        let prefs = GlassPreferences.shared
+        guard prefs.isEnabled, !prefs.safeMode else { return }
+
+        if prefs.styleNavigationBar, let nav = vc.navigationController?.navigationBar {
+            GlassNavigationHelper.applyNavigationBarStyle(to: nav)
+        }
+        if prefs.styleTabBar, let tab = vc.tabBarController?.tabBar {
+            GlassNavigationHelper.applyTabBarStyle(to: tab)
+        }
+        for child in vc.children {
+            if let nav = child as? UINavigationController, prefs.styleNavigationBar {
+                GlassNavigationHelper.applyNavigationBarStyle(to: nav.navigationBar)
+            }
+            if let tab = child as? UITabBarController, prefs.styleTabBar {
+                GlassNavigationHelper.applyTabBarStyle(to: tab.tabBar)
+            }
+        }
+        if let view = vc.viewIfLoaded {
+            walkBarsOnly(view, depth: 0)
+        }
+    }
+
+    @objc public static func applyToView(_ view: UIView) {
+        guard GlassPreferences.shared.isEnabled, !GlassPreferences.shared.safeMode else { return }
+        walkBarsOnly(view, depth: 0)
+    }
+
+    @objc public static func applyAll() {
+        let prefs = GlassPreferences.shared
+        // Always strip legacy overlays even if disabled
+        GlassSurfaceRouter.shared.refresh()
+        GlassChromeShell.shared.reassert()
+        GlassLiquidTabBar.shared.refresh()
+
+        guard prefs.isEnabled, !prefs.safeMode else { return }
+
+        for window in GlassAppSupport.allWindows() {
+            walkBarsOnly(window, depth: 0)
+            if prefs.styleCards || prefs.styleButtons {
+                walkPolish(window, depth: 0)
+            }
+        }
+    }
+
+    /// Only UINavigationBar / UITabBar — never generic “bottom chrome”.
+    private static func walkBarsOnly(_ view: UIView, depth: Int) {
+        guard depth < 20 else { return }
+        let prefs = GlassPreferences.shared
+        if let nav = view as? UINavigationBar, prefs.styleNavigationBar {
+            GlassNavigationHelper.applyNavigationBarStyle(to: nav)
+        }
+        if let tab = view as? UITabBar, prefs.styleTabBar {
+            GlassNavigationHelper.applyTabBarStyle(to: tab)
+        }
+        for sub in view.subviews {
+            walkBarsOnly(sub, depth: depth + 1)
+        }
+    }
+
+    /// Light polish — continuous corners only, no borders, no inserted blur views.
+    private static func walkPolish(_ view: UIView, depth: Int) {
+        guard depth < 12 else { return }
+        let prefs = GlassPreferences.shared
+
+        if prefs.styleButtons, let btn = view as? UIButton, !(btn is GlassSettingsButton) {
+            polishButton(btn)
+        }
+        if prefs.styleCards {
+            polishCard(view)
+        }
+        for sub in view.subviews {
+            walkPolish(sub, depth: depth + 1)
+        }
+    }
+
+    private static func polishButton(_ button: UIButton) {
+        let title = ((button.title(for: .normal) ?? button.currentTitle ?? "")
+            + " " + (button.accessibilityLabel ?? "")).lowercased()
+        let blocked = ["follow", "following", "message", "share", "like", "comment",
+                       "post", "send", "reply", "story", "reels", "live"]
+        if blocked.contains(where: { title.contains($0) }) { return }
+        if button.bounds.width > 160 && button.bounds.height > 44 { return }
+        if button.layer.cornerRadius > 0 {
+            button.layer.cornerCurve = .continuous
+        }
+        // No forced borders
+        button.layer.borderWidth = 0
+    }
+
+    private static func polishCard(_ view: UIView) {
+        if view is UIControl || view is UIButton || view is UILabel { return }
+        if view.layer.cornerRadius >= 8 {
+            view.layer.cornerCurve = .continuous
+        }
+        // Strip borders we may have added earlier
+        if view.layer.borderWidth > 0 && view.layer.borderWidth <= 0.6 {
+            let name = NSStringFromClass(type(of: view))
+            if name.contains("Glass") { return }
+            // Only clear thin borders likely from us
+            if view.layer.borderColor == UIColor.white.withAlphaComponent(0.10).cgColor
+                || view.layer.borderColor == UIColor.white.withAlphaComponent(0.18).cgColor {
+                view.layer.borderWidth = 0
+            }
+        }
+    }
+}
