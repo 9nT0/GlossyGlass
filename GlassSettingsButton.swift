@@ -68,7 +68,7 @@ import UIKit
                 blur.bottomAnchor.constraint(equalTo: bottomAnchor)
             ])
         }
-        layer.borderWidth = 0.55
+        layer.borderWidth = 0.4
         layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.20 * intensity : 0.40 * intensity).cgColor
         layer.cornerRadius = 16
         layer.cornerCurve = .continuous

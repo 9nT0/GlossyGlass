@@ -1,12 +1,17 @@
 import UIKit
 
-/// Real liquid-glass chrome for UINavigationBar + UITabBar.
-/// Edge-to-edge materials — no floating “box” overlays on the bar itself.
+/// In-place liquid materials for UINavigationBar + UITabBar.
+/// No extra subviews, no hairlines, no floating boxes.
 @objc public class GlassNavigationHelper: NSObject {
 
     @objc public static func applyNavigationBarStyle(to navigationBar: UINavigationBar) {
         let prefs = GlassPreferences.shared
-        guard prefs.isEnabled, prefs.styleNavigationBar, !prefs.safeMode else { return }
+        guard prefs.isEnabled, prefs.styleNavigationBar, !prefs.safeMode else {
+            restoreNavigationBar(navigationBar)
+            return
+        }
+        // Mutual exclusion with tab emphasis when both toggled — still apply both materials,
+        // but nav stays edge-to-edge (no island), tab stays full system bar with glass fill.
 
         let isDark = navigationBar.traitCollection.userInterfaceStyle == .dark
         let intensity = effectiveIntensity(isDark: isDark, prefs: prefs)
@@ -17,22 +22,17 @@ import UIKit
         appearance.shadowImage = UIImage()
 
         if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
-            let style = blurStyle(isDark: isDark, prefs: prefs)
-            appearance.backgroundEffect = UIBlurEffect(style: style)
-            // Slight tint so it reads as glass, not empty
-            let alpha = (isDark ? 0.06 : 0.10) * intensity * prefs.opacity
-            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.22, alpha))
+            appearance.backgroundEffect = GlassLiquidEngine.shared.effectMatchingPreferences(dark: isDark)
+            let a = (isDark ? 0.04 : 0.08) * intensity * prefs.opacity
+            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.18, a))
         } else {
             appearance.backgroundEffect = nil
             appearance.backgroundColor = UIColor.secondarySystemBackground
-                .withAlphaComponent(0.88 * prefs.opacity)
+                .withAlphaComponent(0.92 * prefs.opacity)
         }
 
         let titleFont = UIFont.systemFont(ofSize: 17, weight: .semibold)
-        appearance.titleTextAttributes = [
-            .foregroundColor: UIColor.label,
-            .font: titleFont
-        ]
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.label, .font: titleFont]
         appearance.largeTitleTextAttributes = [
             .foregroundColor: UIColor.label,
             .font: UIFont.systemFont(ofSize: 32, weight: .bold)
@@ -48,42 +48,52 @@ import UIKit
         navigationBar.isTranslucent = true
         navigationBar.barTintColor = .clear
         navigationBar.backgroundColor = .clear
-        // NO cornerRadius on full-width nav — that creates the “box overlay” look
+        navigationBar.setBackgroundImage(UIImage(), for: .default)
+        navigationBar.shadowImage = UIImage()
+
+        // Clean — no corner box, no hairline subviews, no borders
         navigationBar.layer.cornerRadius = 0
         navigationBar.layer.maskedCorners = []
         navigationBar.layer.borderWidth = 0
         navigationBar.layer.shadowOpacity = 0
-        navigationBar.setBackgroundImage(UIImage(), for: .default)
-        navigationBar.shadowImage = UIImage()
-
-        // Hairline glass edge under bar
-        installBottomHairline(on: navigationBar, isDark: isDark, intensity: intensity)
+        stripTagged(from: navigationBar)
     }
 
     @objc public static func applyTabBarStyle(to tabBar: UITabBar) {
         let prefs = GlassPreferences.shared
-        guard prefs.isEnabled, prefs.styleTabBar, !prefs.safeMode else { return }
+        guard prefs.isEnabled, prefs.styleTabBar, !prefs.safeMode else {
+            restoreTabBar(tabBar)
+            return
+        }
 
-        // Stock bar is interaction-only. Visual chrome is GlassLiquidTabBar capsule.
+        let isDark = tabBar.traitCollection.userInterfaceStyle == .dark
+        let intensity = effectiveIntensity(isDark: isDark, prefs: prefs)
+
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = nil
-        appearance.backgroundColor = .clear
         appearance.shadowColor = .clear
         appearance.shadowImage = UIImage()
+
+        if prefs.blurEnabled && !UIAccessibility.isReduceTransparencyEnabled {
+            appearance.backgroundEffect = GlassLiquidEngine.shared.effectMatchingPreferences(dark: isDark)
+            let a = (isDark ? 0.05 : 0.09) * intensity * prefs.opacity
+            appearance.backgroundColor = UIColor.white.withAlphaComponent(min(0.20, a))
+        } else {
+            appearance.backgroundEffect = nil
+            appearance.backgroundColor = UIColor.secondarySystemBackground
+                .withAlphaComponent(0.94 * prefs.opacity)
+        }
 
         let item = UITabBarItemAppearance()
         let fontN = UIFont.systemFont(ofSize: 10, weight: .medium)
         let fontS = UIFont.systemFont(ofSize: 10, weight: .semibold)
-        item.normal.iconColor = UIColor.label.withAlphaComponent(0.55)
+        item.normal.iconColor = UIColor.label.withAlphaComponent(0.42)
         item.selected.iconColor = .label
         item.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.label.withAlphaComponent(0.55),
-            .font: fontN
+            .foregroundColor: UIColor.label.withAlphaComponent(0.42), .font: fontN
         ]
         item.selected.titleTextAttributes = [
-            .foregroundColor: UIColor.label,
-            .font: fontS
+            .foregroundColor: UIColor.label, .font: fontS
         ]
         appearance.stackedLayoutAppearance = item
         appearance.inlineLayoutAppearance = item
@@ -94,13 +104,41 @@ import UIKit
         tabBar.isTranslucent = true
         tabBar.backgroundColor = .clear
         tabBar.barTintColor = .clear
+
+        // Full-width glass bar — not a floating island overlay
         tabBar.layer.cornerRadius = 0
         tabBar.layer.borderWidth = 0
         tabBar.layer.shadowOpacity = 0
-        // Keep hit targets; liquid capsule is drawn above as visual only
+        tabBar.alpha = 1
+        stripTagged(from: tabBar)
     }
 
-    // MARK: - Helpers
+    // MARK: - Restore / helpers
+
+    private static func restoreNavigationBar(_ bar: UINavigationBar) {
+        let a = UINavigationBarAppearance()
+        a.configureWithDefaultBackground()
+        bar.standardAppearance = a
+        bar.scrollEdgeAppearance = a
+        stripTagged(from: bar)
+    }
+
+    private static func restoreTabBar(_ bar: UITabBar) {
+        let a = UITabBarAppearance()
+        a.configureWithDefaultBackground()
+        bar.standardAppearance = a
+        bar.scrollEdgeAppearance = a
+        bar.alpha = 1
+        stripTagged(from: bar)
+    }
+
+    private static func stripTagged(from view: UIView) {
+        for sub in view.subviews {
+            if sub.tag == 0x4747_484C || sub.tag == 0x4747_424C || sub.tag == 0x4747_5442 {
+                sub.removeFromSuperview()
+            }
+        }
+    }
 
     private static func effectiveIntensity(isDark: Bool, prefs: GlassPreferences) -> CGFloat {
         let base = isDark ? prefs.darkIntensity : prefs.lightIntensity
@@ -116,25 +154,8 @@ import UIKit
             return isDark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight
         case "tinted":
             return isDark ? .systemMaterialDark : .systemMaterialLight
-        default: // Frosted
+        default:
             return isDark ? .systemThinMaterialDark : .systemThinMaterialLight
         }
-    }
-
-    private static let hairlineTag = 0x4747_484C // "GGHL"
-
-    private static func installBottomHairline(on bar: UIView, isDark: Bool, intensity: CGFloat) {
-        bar.viewWithTag(hairlineTag)?.removeFromSuperview()
-        let line = UIView()
-        line.tag = hairlineTag
-        line.translatesAutoresizingMaskIntoConstraints = false
-        line.backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.10 * intensity : 0.22 * intensity)
-        bar.addSubview(line)
-        NSLayoutConstraint.activate([
-            line.leadingAnchor.constraint(equalTo: bar.leadingAnchor),
-            line.trailingAnchor.constraint(equalTo: bar.trailingAnchor),
-            line.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
-            line.heightAnchor.constraint(equalToConstant: 1.0 / UIScreen.main.scale)
-        ])
     }
 }

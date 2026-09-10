@@ -1,6 +1,7 @@
 import UIKit
 
-/// Applies real glass materials to Instagram / host chrome — not decorative overlays.
+/// Applies glass only through real bar appearance APIs + light in-place polish.
+/// Does NOT insert floating blur overlays into random bottom/top chrome (that broke DM/story).
 @objc public class GlassStyleApplicator: NSObject {
 
     private static var started = false
@@ -17,176 +18,121 @@ import UIKit
                     queue: .main
                 ) { _ in applyAll() }
 
-                // Frequent while settling, then steady
                 timer?.invalidate()
-                timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
                     applyAll()
                 }
-                for d in [0.3, 0.8, 1.5, 3.0, 6.0, 12.0] as [TimeInterval] {
+                for d in [0.4, 1.2, 3.0, 7.0] as [TimeInterval] {
                     DispatchQueue.main.asyncAfter(deadline: .now() + d) { applyAll() }
                 }
+                GlassLiquidTabBar.shared.start()
             }
             applyAll()
-            GlassLiquidTabBar.shared.start()
         }
     }
 
     @objc public static func applyToViewController(_ vc: UIViewController) {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
-        if let nav = vc.navigationController?.navigationBar {
+
+        if prefs.styleNavigationBar, let nav = vc.navigationController?.navigationBar {
             GlassNavigationHelper.applyNavigationBarStyle(to: nav)
         }
-        if let tab = vc.tabBarController?.tabBar {
+        if prefs.styleTabBar, let tab = vc.tabBarController?.tabBar {
             GlassNavigationHelper.applyTabBarStyle(to: tab)
         }
-        // Contained bars
         for child in vc.children {
-            if let nav = child as? UINavigationController {
+            if let nav = child as? UINavigationController, prefs.styleNavigationBar {
                 GlassNavigationHelper.applyNavigationBarStyle(to: nav.navigationBar)
             }
-            if let tab = child as? UITabBarController {
+            if let tab = child as? UITabBarController, prefs.styleTabBar {
                 GlassNavigationHelper.applyTabBarStyle(to: tab.tabBar)
             }
         }
         if let view = vc.viewIfLoaded {
-            walk(view, depth: 0)
+            walkBarsOnly(view, depth: 0)
         }
     }
 
     @objc public static func applyToView(_ view: UIView) {
-        let prefs = GlassPreferences.shared
-        guard prefs.isEnabled, !prefs.safeMode else { return }
-        walk(view, depth: 0)
+        guard GlassPreferences.shared.isEnabled, !GlassPreferences.shared.safeMode else { return }
+        walkBarsOnly(view, depth: 0)
     }
-
 
     @objc public static func applyAll() {
         let prefs = GlassPreferences.shared
+        // Always strip legacy overlays even if disabled
+        GlassLiquidTabBar.shared.refresh()
+
         guard prefs.isEnabled, !prefs.safeMode else { return }
 
         for window in GlassAppSupport.allWindows() {
-            walk(window, depth: 0)
+            walkBarsOnly(window, depth: 0)
+            if prefs.styleCards || prefs.styleButtons {
+                walkPolish(window, depth: 0)
+            }
         }
-        GlassLiquidTabBar.shared.refresh()
     }
 
-    private static func walk(_ view: UIView, depth: Int) {
-        guard depth < 24 else { return }
+    /// Only UINavigationBar / UITabBar — never generic “bottom chrome”.
+    private static func walkBarsOnly(_ view: UIView, depth: Int) {
+        guard depth < 20 else { return }
         let prefs = GlassPreferences.shared
-
         if let nav = view as? UINavigationBar, prefs.styleNavigationBar {
             GlassNavigationHelper.applyNavigationBarStyle(to: nav)
         }
         if let tab = view as? UITabBar, prefs.styleTabBar {
             GlassNavigationHelper.applyTabBarStyle(to: tab)
         }
-
-        // Instagram often uses custom header containers instead of UINavigationBar
-        if prefs.styleNavigationBar {
-            tryStyleCustomHeader(view)
-        }
-
-        if prefs.styleCards {
-            applyCardIfLikely(view)
-        }
-        if prefs.styleButtons, let btn = view as? UIButton, !(btn is GlassSettingsButton) {
-            applyButtonChrome(btn)
-        }
-
         for sub in view.subviews {
-            walk(sub, depth: depth + 1)
+            walkBarsOnly(sub, depth: depth + 1)
         }
     }
 
-    /// Soft glass on IG-like top chrome (search bars, custom nav containers).
-    private static func tryStyleCustomHeader(_ view: UIView) {
-        let name = NSStringFromClass(type(of: view))
-        let lower = name.lowercased()
-        let looksHeader =
-            lower.contains("navbar") || lower.contains("navigationbar") ||
-            lower.contains("header") || lower.contains("topbar") ||
-            lower.contains("searchbar") || lower.contains("ignavigation") ||
-            lower.contains("igtabbar") || lower.contains("igtab") ||
-            lower.contains("igsegment") || lower.contains("toolbar") ||
-            lower.contains("actionbar") || lower.contains("titleview") ||
-            lower.contains("igcustomnav") || lower.contains("statusbarm") ||
-            lower.contains("igmainfeed") && lower.contains("header")
-
-        guard looksHeader else { return }
-        // Only wide, short strips near the top
-        guard view.bounds.width > 200, view.bounds.height > 28, view.bounds.height < 120 else { return }
-        // Skip our own glass button
-        if view is GlassSettingsButton { return }
-
+    /// Light polish — continuous corners only, no borders, no inserted blur views.
+    private static func walkPolish(_ view: UIView, depth: Int) {
+        guard depth < 12 else { return }
         let prefs = GlassPreferences.shared
-        let isDark = view.traitCollection.userInterfaceStyle == .dark
 
-        // Prefer adding a blur behind existing content once
-        let blurTag = 0x4747_424C // "GGBL"
-        if view.viewWithTag(blurTag) == nil, prefs.blurEnabled,
-           !UIAccessibility.isReduceTransparencyEnabled {
-            let style: UIBlurEffect.Style = isDark ? .systemThinMaterialDark : .systemThinMaterialLight
-            let blur = UIVisualEffectView(effect: UIBlurEffect(style: style))
-            blur.tag = blurTag
-            blur.translatesAutoresizingMaskIntoConstraints = false
-            blur.isUserInteractionEnabled = false
-            view.insertSubview(blur, at: 0)
-            NSLayoutConstraint.activate([
-                blur.topAnchor.constraint(equalTo: view.topAnchor),
-                blur.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                blur.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                blur.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-            ])
+        if prefs.styleButtons, let btn = view as? UIButton, !(btn is GlassSettingsButton) {
+            polishButton(btn)
         }
-
-        // Soft edge, continuous curve only if already rounded
-        if view.layer.cornerRadius >= 8 {
-            view.layer.cornerCurve = .continuous
-            if prefs.edgeHighlightEnabled, view.layer.borderWidth < 0.2 {
-                view.layer.borderWidth = 0.4
-                view.layer.borderColor = UIColor.white
-                    .withAlphaComponent(isDark ? 0.12 : 0.22).cgColor
-            }
+        if prefs.styleCards {
+            polishCard(view)
         }
-
-        // Knock down opaque backgrounds so blur shows through
-        if let bg = view.backgroundColor, bg.cgColor.alpha > 0.85 {
-            view.backgroundColor = bg.withAlphaComponent(0.15)
+        for sub in view.subviews {
+            walkPolish(sub, depth: depth + 1)
         }
     }
 
-    private static func applyButtonChrome(_ button: UIButton) {
+    private static func polishButton(_ button: UIButton) {
         let title = ((button.title(for: .normal) ?? button.currentTitle ?? "")
             + " " + (button.accessibilityLabel ?? "")).lowercased()
         let blocked = ["follow", "following", "message", "share", "like", "comment",
-                       "post", "send", "reply", "story", "reels", "live", "subscribe"]
+                       "post", "send", "reply", "story", "reels", "live"]
         if blocked.contains(where: { title.contains($0) }) { return }
-        if button.bounds.width > 160 && button.bounds.height > 40 { return }
-
-        if button.layer.cornerRadius < 1 { button.layer.cornerRadius = 10 }
-        button.layer.cornerCurve = .continuous
-        if button.backgroundColor == nil || button.backgroundColor == .clear {
-            let isDark = button.traitCollection.userInterfaceStyle == .dark
-            button.backgroundColor = UIColor.white.withAlphaComponent(isDark ? 0.08 : 0.12)
+        if button.bounds.width > 160 && button.bounds.height > 44 { return }
+        if button.layer.cornerRadius > 0 {
+            button.layer.cornerCurve = .continuous
         }
-        button.clipsToBounds = true
+        // No forced borders
+        button.layer.borderWidth = 0
     }
 
-    private static func applyCardIfLikely(_ view: UIView) {
-        let name = NSStringFromClass(type(of: view))
-        let looksCard = name.contains("Cell") || name.contains("Card") || name.contains("Collection")
-            || (view.bounds.height > 60 && view.bounds.width > 120 && view.layer.cornerRadius >= 8)
-        guard looksCard else { return }
-        guard view.backgroundColor != nil || view.layer.cornerRadius > 0 else { return }
-        if view is UIControl || view is UIButton { return }
-
-        view.layer.cornerCurve = .continuous
-        if view.layer.cornerRadius < 8 { view.layer.cornerRadius = 14 }
-        if view.layer.borderWidth < 0.2 {
-            let isDark = view.traitCollection.userInterfaceStyle == .dark
-            view.layer.borderWidth = 0.4
-            view.layer.borderColor = UIColor.white.withAlphaComponent(isDark ? 0.10 : 0.18).cgColor
+    private static func polishCard(_ view: UIView) {
+        if view is UIControl || view is UIButton || view is UILabel { return }
+        if view.layer.cornerRadius >= 8 {
+            view.layer.cornerCurve = .continuous
+        }
+        // Strip borders we may have added earlier
+        if view.layer.borderWidth > 0 && view.layer.borderWidth <= 0.6 {
+            let name = NSStringFromClass(type(of: view))
+            if name.contains("Glass") { return }
+            // Only clear thin borders likely from us
+            if view.layer.borderColor == UIColor.white.withAlphaComponent(0.10).cgColor
+                || view.layer.borderColor == UIColor.white.withAlphaComponent(0.18).cgColor {
+                view.layer.borderWidth = 0
+            }
         }
     }
 }

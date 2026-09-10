@@ -56,6 +56,8 @@ import UIKit
                 GlassInjector.start()
                 GlassStyleApplicator.start()
                 GlassLiquidTabBar.shared.start()
+                _ = GlassIGScanner.shared.scan()
+                _ = GGEmbedded_EnsureLUT()
                 GlassScreenProfileMonitor.start()
                 GlassWelcome.presentIfNeeded()
                 GlassFirstLaunch.checkAndShowIfNeeded()
@@ -103,6 +105,8 @@ import UIKit
             GlassInjector.start()
             GlassStyleApplicator.start()
                 GlassLiquidTabBar.shared.start()
+                _ = GlassIGScanner.shared.scan()
+                _ = GGEmbedded_EnsureLUT()
             GlassScreenProfileMonitor.start()
             GlassWelcome.presentIfNeeded()
             GlassFirstLaunch.checkAndShowIfNeeded()
@@ -115,6 +119,8 @@ import UIKit
             GlassInjector.start()
             GlassStyleApplicator.start()
                 GlassLiquidTabBar.shared.start()
+                _ = GlassIGScanner.shared.scan()
+                _ = GGEmbedded_EnsureLUT()
         }
     }
 

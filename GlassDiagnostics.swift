@@ -33,6 +33,7 @@ import UIKit
         let s = GlassAppSupport.shared
         return """
         GlossyGlass Diagnostics v4.0.2
+        Private: \(GlassPrivateBridge.hasUIGlassEffect ? "UIGlass" : "no-UIGlass")
         ----------------------------
         Glass: \(glassVersion)
         iOS: \(iosVersion)

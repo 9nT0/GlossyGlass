@@ -193,6 +193,42 @@ import UIKit
     @objc public func applyLiquidGlassLook() { GlassThemeEngine.shared.applyLiquidDefault() }
 
     @objc public func applyLiquidHeavyLook() { GlassThemeEngine.shared.applyLiquidHeavy() }
+    
+
+    // MARK: - v4.0.2 Expanded API
+
+    @objc public func privateCapabilityReport() -> String {
+        GlassPrivateBridge.capabilityReport()
+    }
+
+    @objc public func liquidEngineReport() -> String {
+        GlassLiquidEngine.shared.engineReport()
+    }
+
+    @objc public func runIGScan() -> String {
+        GlassIGScanner.shared.scanJSON()
+    }
+
+    @objc public func materialCatalogCount() -> Int {
+        GlassMaterialCatalog.shared.materialCount()
+    }
+
+    @objc public func materialCatalogJSON() -> String {
+        GlassMaterialCatalog.shared.catalogJSON()
+    }
+
+    @objc public func applyMaterialID(_ materialId: String) {
+        GlassMaterialCatalog.shared.applyMaterial(id: materialId)
+    }
+
+    @objc public func effectPipelineQuality() -> [String: Any] {
+        GlassEffectPipeline.shared.evaluateQuality()
+    }
+
+    @objc public func hasNativeUIGlass() -> Bool {
+        GlassPrivateBridge.hasUIGlassEffect
+    }
+
     @objc public func presentDiagnostics() { GlassDiagnostics.shared.present() }
 
     // MARK: - Persistence
