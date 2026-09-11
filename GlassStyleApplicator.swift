@@ -1,11 +1,9 @@
 import UIKit
 
-/// Applies glass only through real bar appearance APIs + light in-place polish.
-/// Does NOT insert floating blur overlays into random bottom/top chrome (that broke DM/story).
+/// Light polish only. Chrome ownership is GlassChromeCoordinator / GlassDock.
 @objc public class GlassStyleApplicator: NSObject {
 
     private static var started = false
-    private static var timer: Timer?
     private static var observer: NSObjectProtocol?
 
     @objc public static func start() {
@@ -17,17 +15,7 @@ import UIKit
                     object: nil,
                     queue: .main
                 ) { _ in applyAll() }
-
-                timer?.invalidate()
-                timer = // timer removed — coordinator owns chrome
-                    applyAll()
-                }
-                for d in [0.3, 1.0] as [TimeInterval] {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + d) { applyAll() }
-                }
                 GlassChromeCoordinator.shared.start()
-            GlassChromeShell.shared.start()
-            GlassLiquidTabBar.shared.start()
             }
             applyAll()
         }
@@ -62,25 +50,23 @@ import UIKit
     }
 
     @objc public static func applyAll() {
+        guard !GlassMutationGate.isSuspended else { return }
         let prefs = GlassPreferences.shared
-        // Always strip legacy overlays even if disabled
-        GlassSurfaceRouter.shared.refresh()
-        GlassChromeShell.shared.reassert()
-        GlassLiquidTabBar.shared.refresh()
-
         guard prefs.isEnabled, !prefs.safeMode else { return }
 
-        for window in GlassAppSupport.allWindows() {
-            walkBarsOnly(window, depth: 0)
-            if prefs.styleCards || prefs.styleButtons {
-                walkPolish(window, depth: 0)
+        GlassChromeCoordinator.shared.apply(reason: "styleApplicator")
+
+        for w in GlassAppSupport.allWindows() {
+            walkBarsOnly(w, depth: 0)
+            if prefs.styleButtons || prefs.styleCards {
+                walkPolish(w, depth: 0)
             }
         }
     }
 
-    /// Only UINavigationBar / UITabBar — never generic “bottom chrome”.
     private static func walkBarsOnly(_ view: UIView, depth: Int) {
         guard depth < 20 else { return }
+        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
         let prefs = GlassPreferences.shared
         if let nav = view as? UINavigationBar, prefs.styleNavigationBar {
             GlassNavigationHelper.applyNavigationBarStyle(to: nav)
@@ -93,9 +79,9 @@ import UIKit
         }
     }
 
-    /// Light polish — continuous corners only, no borders, no inserted blur views.
     private static func walkPolish(_ view: UIView, depth: Int) {
         guard depth < 12 else { return }
+        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
         let prefs = GlassPreferences.shared
 
         if prefs.styleButtons, let btn = view as? UIButton, !(btn is GlassSettingsButton) {
@@ -119,7 +105,6 @@ import UIKit
         if button.layer.cornerRadius > 0 {
             button.layer.cornerCurve = .continuous
         }
-        // No forced borders
         button.layer.borderWidth = 0
     }
 
@@ -128,11 +113,9 @@ import UIKit
         if view.layer.cornerRadius >= 8 {
             view.layer.cornerCurve = .continuous
         }
-        // Strip borders we may have added earlier
         if view.layer.borderWidth > 0 && view.layer.borderWidth <= 0.6 {
             let name = NSStringFromClass(type(of: view))
             if name.contains("Glass") { return }
-            // Only clear thin borders likely from us
             if view.layer.borderColor == UIColor.white.withAlphaComponent(0.10).cgColor
                 || view.layer.borderColor == UIColor.white.withAlphaComponent(0.18).cgColor {
                 view.layer.borderWidth = 0
