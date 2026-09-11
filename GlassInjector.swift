@@ -120,6 +120,14 @@ import UIKit
                 view.addGestureRecognizer(g)
             }
         }
+        // username / profile header blacklist
+        let excludeBlob = NSStringFromClass(type(of: view)).lowercased()
+            + " " + (view.accessibilityLabel ?? "").lowercased()
+        if excludeBlob.contains("username") || excludeBlob.contains("userdetail")
+            || excludeBlob.contains("profileheader") || excludeBlob.contains("navtitle")
+            || excludeBlob.contains("storyring") {
+            return
+        }
         if view is GlassSettingsButton {
             let exists = view.gestureRecognizers?.contains { $0 is GlassOpenSettingsLongPress } ?? false
             if !exists {

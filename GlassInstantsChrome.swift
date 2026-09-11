@@ -12,7 +12,7 @@ import UIKit
     @objc public func start() {
         DispatchQueue.main.async {
             self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
+            self.timer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
                 self?.scan()
             }
             self.scan()
@@ -34,8 +34,8 @@ import UIKit
         let lower = NSStringFromClass(type(of: view)).lowercased()
         let isInstant =
             lower.contains("instant")
-            || lower.contains("storyviewer")
-            || lower.contains("igstory")
+            // do not match storyviewer/player — covers video surfaces
+            || (lower.contains("igstory") && !lower.contains("player") && !lower.contains("video"))
 
         if isInstant {
             softenBlack(view)
@@ -56,6 +56,7 @@ import UIKit
     private func softenBlack(_ view: UIView) {
         if view.viewWithTag(tag) != nil { return }
         if view is UITabBar || view is UINavigationBar { return }
+        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
 
         let prefs = GlassPreferences.shared
         view.backgroundColor = UIColor.black.withAlphaComponent(0.55)

@@ -23,7 +23,7 @@ import UIKit
                 ) { [weak self] _ in self?.scan() }
             }
             self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            self.timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
                 self?.scan()
             }
             self.scan()
@@ -34,8 +34,23 @@ import UIKit
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
         for w in GlassAppSupport.allWindows() {
+            stripFromMedia(w, depth: 0)
             walk(w, depth: 0)
         }
+    }
+
+    /// Remove any GG material we may have put on a video surface.
+    private func stripFromMedia(_ view: UIView, depth: Int) {
+        guard depth < 16 else { return }
+        if GlassMediaExclusion.shouldSkipGlass(for: view) || GlassMediaExclusion.matches(view) {
+            for sub in view.subviews {
+                if sub.tag == materialTag || sub.tag == tintTag || sub.tag == 0x4747_4D41
+                    || sub.tag == 0x4747_494E || sub.tag == 0x4747_4358 {
+                    sub.removeFromSuperview()
+                }
+            }
+        }
+        for s in view.subviews { stripFromMedia(s, depth: depth + 1) }
     }
 
     private func walk(_ view: UIView, depth: Int) {
@@ -56,6 +71,7 @@ import UIKit
             || lower.contains("reaction")
             || lower.contains("_uicontext")
             || lower.contains("popover")
+        // intentionally NO "preview" — matches video preview containers
 
         let isReactionBar =
             view.bounds.height > 36 && view.bounds.height < 72
@@ -67,6 +83,8 @@ import UIKit
             || lower.contains("messageinput") || lower.contains("chatbar")
 
         if isMenu || isReactionBar || isComposer {
+            // Never cover video / 1v / 2v / DM media viewers
+            if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
             applyGlass(to: view, compact: isReactionBar || view.bounds.height < 80)
         }
 
@@ -80,6 +98,7 @@ import UIKit
     private func applyGlass(to view: UIView, compact: Bool) {
         if view.viewWithTag(materialTag) != nil { return }
         if view is GlassSettingsButton { return }
+        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
 
         let prefs = GlassPreferences.shared
         let effect = GlassMaterialEngine.shared.blurEffect(

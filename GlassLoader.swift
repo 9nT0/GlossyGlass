@@ -1,24 +1,24 @@
 import Foundation
 import UIKit
 
-/// Bootstrap only. Visual chrome is GlassChromeCoordinator.
-/// Injector attaches settings control. No multi-second visual assembly spam.
 @objc public class GlassLoader: NSObject {
 
     @objc public static let shared = GlassLoader()
-
     private static var bootstrapOnce = false
     private static var observersArmed = false
 
     private override init() { super.init() }
 
     @objc public static func kick(reason: String = "kick") {
+        // Instant shield first — before anything else
+        GlassInstantShield.arm()
         DispatchQueue.main.async {
             GlassLoader.shared.bootstrapIfNeeded(reason: reason)
         }
     }
 
     private func bootstrapIfNeeded(reason: String) {
+        GlassInstantShield.arm()
         if !GlassLoader.bootstrapOnce {
             GlassLoader.bootstrapOnce = true
             armObservers()
@@ -42,28 +42,22 @@ import UIKit
     }
 
     private func launch(reason: String) {
-        let windows = GlassAppSupport.allWindows()
-        if windows.isEmpty && reason.contains("immediate") { return }
-
-        // VISUAL PATH — immediate coordinator (not delayed 45s assembly)
+        // One chrome owner
         GlassChromeCoordinator.shared.start()
         GlassContextChrome.shared.start()
-        GlassInstantsChrome.shared.start()
 
-        // BOOTSTRAP PATH — settings button inject (can retry quietly)
         GlassReadyGate.shared.waitUntilReady {
             self.startInjector(tag: "gate")
         }
-        if !windows.isEmpty {
+        if !GlassAppSupport.allWindows().isEmpty {
             startInjector(tag: "windows-\(reason)")
         }
-        // Quiet injector retries — does not rebuild chrome every time
-        for d in [1.5, 4.0, 10.0] as [TimeInterval] {
+        // Quiet injector only — no chrome thrash
+        for d in [2.0, 6.0] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + d) {
                 if !GlassDiagnostics.shared.isAttached {
                     self.startInjector(tag: "retry-\(d)")
                 }
-                GlassChromeCoordinator.shared.apply(reason: "fallback")
             }
         }
     }
@@ -80,20 +74,24 @@ import UIKit
 
 @_cdecl("GlassLoaderEntry")
 public func GlassLoaderEntry() {
+    GlassInstantShield.arm()
     DispatchQueue.main.async { GlassLoader.kick(reason: "GlassLoaderEntry") }
 }
 
 @_cdecl("glossyglass_init")
 public func glossyglass_init() {
+    GlassInstantShield.arm()
     DispatchQueue.main.async { GlassLoader.kick(reason: "glossyglass_init") }
 }
 
 @_cdecl("TweakInitialize")
 public func TweakInitialize() {
+    GlassInstantShield.arm()
     DispatchQueue.main.async { GlassLoader.kick(reason: "TweakInitialize") }
 }
 
 @_cdecl("Initialize")
 public func Initialize() {
+    GlassInstantShield.arm()
     DispatchQueue.main.async { GlassLoader.kick(reason: "Initialize") }
 }

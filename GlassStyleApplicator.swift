@@ -19,7 +19,7 @@ import UIKit
                 ) { _ in applyAll() }
 
                 timer?.invalidate()
-                timer = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: true) { _ in
+                timer = // timer removed — coordinator owns chrome
                     applyAll()
                 }
                 for d in [0.3, 1.0] as [TimeInterval] {

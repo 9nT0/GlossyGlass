@@ -37,6 +37,7 @@ import UIKit
 
     /// Install full material stack into a host view. `compact` = curved inset plate (tabs).
     @objc public func install(into host: UIView, style: String, intensity: CGFloat, opacity: CGFloat, compact: Bool) {
+        if GlassMediaExclusion.shouldSkipGlass(for: host) { return }
         let dark = true // IG chrome is dark-first
         let effect = blurEffect(style: style, dark: dark, intensity: intensity)
 
