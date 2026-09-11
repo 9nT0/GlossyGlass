@@ -67,6 +67,10 @@ jobs:
               A36 /* GlassMaterialEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B36; };
               A37 /* GlassContextChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37; };
               A38 /* GlassInstantsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38; };
+              A39 /* GlassInstantShield.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39; };
+              A40 /* GlassDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40; };
+              A41 /* GlassMutationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41; };
+              A42 /* GlassMediaExclusion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42; };
               B01 /* GlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassView.swift; sourceTree = "<group>"; };
               B02 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
               B03 /* GlassSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSlider.swift; sourceTree = "<group>"; };
@@ -111,13 +115,17 @@ jobs:
               B36 /* GlassMaterialEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMaterialEngine.swift; sourceTree = "<group>"; };
               B37 /* GlassContextChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassContextChrome.swift; sourceTree = "<group>"; };
               B38 /* GlassInstantsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantsChrome.swift; sourceTree = "<group>"; };
+              B39 /* GlassInstantShield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantShield.swift; sourceTree = "<group>"; };
+              B40 /* GlassDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDock.swift; sourceTree = "<group>"; };
+              B41 /* GlassMutationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMutationGate.swift; sourceTree = "<group>"; };
+              B42 /* GlassMediaExclusion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMediaExclusion.swift; sourceTree = "<group>"; };
               C01 /* GlossyGlass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = GlossyGlass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
               D01 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
               E01 = {isa = PBXGroup; children = (E02, E03); sourceTree = "<group>"; };
-              E02 /* Sources */ = {isa = PBXGroup; children = (B01, B02, B03, B04, B05, B06, B07, B08, B09, B0A, B0B, B0C, B0D, B0E, B0F, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38); name = Sources; sourceTree = "<group>"; };
+              E02 /* Sources */ = {isa = PBXGroup; children = (B01, B02, B03, B04, B05, B06, B07, B08, B09, B0A, B0B, B0C, B0D, B0E, B0F, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B40, B41, B42); name = Sources; sourceTree = "<group>"; };
               E03 /* Products */ = {isa = PBXGroup; children = (C01); name = Products; sourceTree = "<group>"; };
               F01 /* GlossyGlass */ = {isa = PBXNativeTarget; buildConfigurationList = G02; buildPhases = (F02, D01); buildRules = (); dependencies = (); name = GlossyGlass; productName = GlossyGlass; productReference = C01; productType = "com.apple.product-type.library.dynamic"; };
-              F02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A01, A02, A03, A04, A05, A06, A07, A08, A09, A0A, A0B, A0C, A0D, A0E, A0F, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, A30, A31, A32, A33, A34, A35, A36, A37, A38); runOnlyForDeploymentPostprocessing = 0; };
+              F02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A01, A02, A03, A04, A05, A06, A07, A08, A09, A0A, A0B, A0C, A0D, A0E, A0F, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, A30, A31, A32, A33, A34, A35, A36, A37, A38, A39, A40, A41, A42); runOnlyForDeploymentPostprocessing = 0; };
               H01 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; }; buildConfigurationList = G01; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = E01; productRefGroup = E03; projectDirPath = ""; projectRoot = ""; targets = (F01); };
               I01 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; VALIDATE_PRODUCT = YES; }; name = Release; };
               I02 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_REQUIRED = NO; DYLIB_COMPATIBILITY_VERSION = 1; DYLIB_CURRENT_VERSION = 1; EXECUTABLE_PREFIX = ""; GENERATE_INFOPLIST_FILE = YES; INSTALL_PATH = "@rpath"; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"); OTHER_LDFLAGS = (
