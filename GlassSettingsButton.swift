@@ -115,21 +115,28 @@ import UIKit
 
     @objc public static func present(from sourceView: UIView? = nil) {
         DispatchQueue.main.async {
-            GlassMutationGate.suspend()
+            // Always use dedicated overlay window — IG/LC present often crashes
             let vc = GlassSettingsViewController()
             let nav = UINavigationController(rootViewController: vc)
-            nav.modalPresentationStyle = .formSheet
+            nav.modalPresentationStyle = .pageSheet
             if #available(iOS 15.0, *) {
-                nav.preferredContentSize = CGSize(width: 420, height: 640)
+                if let sheet = nav.sheetPresentationController {
+                    sheet.detents = [.medium(), .large()]
+                    sheet.prefersGrabberVisible = true
+                }
             }
-            GlassAppSupport.presentModally(nav, animated: true)
-            NSLog("[GlossyGlass] Settings panel presented")
+            GlassOverlayPresenter.shared.present(nav, animated: true)
+            NSLog("[GlossyGlass] Settings panel presented via overlay")
         }
     }
 }
 
 
 private class GlassSettingsViewController: UIViewController {
+    deinit {
+        GlassMutationGate.resume()
+        DispatchQueue.main.async { GlassOverlayPresenter.shared.dismissOverlay() }
+    }
 
     private let prefs = GlassPreferences.shared
 
@@ -178,8 +185,6 @@ private class GlassSettingsViewController: UIViewController {
             image: UIImage(systemName: "chevron.left"),
             style: .plain, target: self, action: #selector(close)
         )
-        // Ensure gate suspended while this VC lives
-        GlassMutationGate.suspend()
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Reset", style: .plain, target: self, action: #selector(resetDefaults)
         )
@@ -623,6 +628,7 @@ private class GlassSettingsViewController: UIViewController {
 
     @objc private func close() {
         GlassMutationGate.resume()
+        GlassOverlayPresenter.shared.dismissOverlay()
         dismiss(animated: true)
     }
 }

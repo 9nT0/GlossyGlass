@@ -19,9 +19,10 @@ import UIKit
                 self.started = true
                 self.armEvents()
                 // Short startup only
-                for d in [0.02, 0.1, 0.3, 0.7] as [TimeInterval] {
+                for d in [0.02, 0.08, 0.2, 0.45, 0.9, 1.5, 2.5, 4.0] as [TimeInterval] {
                     DispatchQueue.main.asyncAfter(deadline: .now() + d) {
                         self.apply(reason: "boot")
+                        GlassDock.shared.attachIfNeeded()
                     }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
@@ -51,7 +52,6 @@ import UIKit
     }
 
     @objc public func apply(reason: String = "apply") {
-        guard !GlassMutationGate.isSuspended else { return }
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
         let now = CFAbsoluteTimeGetCurrent()
@@ -84,7 +84,6 @@ import UIKit
     }
 
     @objc public func paintIfChrome(_ view: UIView) {
-        guard !GlassMutationGate.isSuspended else { return }
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
         let name = NSStringFromClass(type(of: view)).lowercased()

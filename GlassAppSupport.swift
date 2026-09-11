@@ -300,27 +300,26 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
     private var window: UIWindow?
 
     @objc public func present(_ controller: UIViewController, animated: Bool) {
-        let win: UIWindow
-        if let existing = window {
-            win = existing
+        // Always rebuild window for clean present (avoids stuck state after crash)
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+            ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+            window = UIWindow(windowScene: scene)
         } else {
-            if let scene = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive })
-                ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
-                win = UIWindow(windowScene: scene)
-            } else {
-                win = UIWindow(frame: UIScreen.main.bounds)
-            }
-            win.windowLevel = UIWindow.Level.alert + 10
-            win.backgroundColor = .clear
-            let root = UIViewController()
-            root.view.backgroundColor = .clear
-            win.rootViewController = root
-            self.window = win
+            window = UIWindow(frame: UIScreen.main.bounds)
         }
+        guard let win = window else { return }
+        win.windowLevel = UIWindow.Level.alert + 10
+        win.backgroundColor = .clear
+        let root = UIViewController()
+        root.view.backgroundColor = .clear
+        win.rootViewController = root
         win.makeKeyAndVisible()
-        win.rootViewController?.present(controller, animated: animated)
+        // Small delay so window is key before present
+        DispatchQueue.main.async {
+            root.present(controller, animated: animated, completion: nil)
+        }
     }
 
     @objc public func dismissOverlay() {

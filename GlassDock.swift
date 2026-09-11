@@ -14,7 +14,6 @@ import UIKit
     private override init() { super.init() }
 
     @objc public func attachIfNeeded() {
-        guard !GlassMutationGate.isSuspended else { return }
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode, prefs.styleTabBar else { return }
 
@@ -128,7 +127,6 @@ import UIKit
     }
 
     @objc public func onLayout(_ bar: UIView) {
-        guard !GlassMutationGate.isSuspended else { return }
         install(on: bar)
     }
 }

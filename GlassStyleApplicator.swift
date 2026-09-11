@@ -50,7 +50,6 @@ import UIKit
     }
 
     @objc public static func applyAll() {
-        guard !GlassMutationGate.isSuspended else { return }
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
 
