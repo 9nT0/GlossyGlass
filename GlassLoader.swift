@@ -34,6 +34,7 @@ import UIKit
         }
 
         // Single owner — all chrome flows through the coordinator
+        _ = GlassPreferences.shared  // force registerDefaults
         GlassUICoordinator.shared.start()
 
         GlassReadyGate.shared.waitUntilReady {

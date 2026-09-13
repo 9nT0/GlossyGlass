@@ -14,8 +14,8 @@ import UIKit
         } else {
             DispatchQueue.main.async { shared.run() }
         }
-        // Also retry a few times during first frames only
-        for d in [0.0, 0.05, 0.12, 0.25] as [TimeInterval] {
+        // Sparse retries only — avoid main-thread storm at launch (LC crash source)
+        for d in [0.15, 0.6] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + d) {
                 shared.run()
             }

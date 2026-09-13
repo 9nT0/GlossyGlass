@@ -56,6 +56,7 @@ import UIKit
             }
             attemptInjection()
             installMessagesLongPress()
+            GlassUICoordinator.shared.apply(reason: "injector")
             GlassPreferences.shared.log("Injector start host=\(GlassAppSupport.shared.bundleId)")
         }
     }
@@ -226,7 +227,7 @@ import UIKit
                 note: "No host (attempt \(injectionAttempts))"
             )
             // Float early — especially LC
-            let floatAt = GlassAppSupport.shared.isContainerEnvironment ? 2 : 3
+            let floatAt = GlassAppSupport.shared.isContainerEnvironment ? 1 : 2
             if injectionAttempts >= floatAt {
                 if GlassAppSupport.shared.isContainerEnvironment {
                     prefs.forceShowGlassButton = true

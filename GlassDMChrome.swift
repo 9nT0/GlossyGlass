@@ -1,6 +1,7 @@
 import UIKit
 
-/// DM header + composer glass only. Never covers message text or media.
+/// Messages surface: glass ONLY the bottom composer / input toolbar.
+/// Never glass the navigation title, username, avatar, or thread name.
 @objc public final class GlassDMChrome: NSObject {
 
     @objc public static let shared = GlassDMChrome()
@@ -9,77 +10,137 @@ import UIKit
     @objc public func apply() {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
-
         let now = CFAbsoluteTimeGetCurrent()
         if now - lastApply < 0.12 { return }
         lastApply = now
 
         for w in GlassAppSupport.allWindows() {
-            walk(w, depth: 0)
+            // Strip any GG plate sitting on headers / name labels first
+            stripBadOverlays(w, depth: 0)
+            // Composer only
+            if let composer = findComposer(in: w, depth: 0) {
+                styleComposer(composer)
+            }
         }
     }
 
-    private func walk(_ view: UIView, depth: Int) {
-        guard depth < 14 else { return }
-        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
+    // MARK: - Strip name/header overlays
 
+    private func stripBadOverlays(_ view: UIView, depth: Int) {
+        guard depth < 16 else { return }
         let n = NSStringFromClass(type(of: view)).lowercased()
+        let label = (view.accessibilityLabel ?? "").lowercased()
+        let blob = n + " " + label
 
-        if n.contains("composer") || n.contains("inputtoolbar")
-            || n.contains("messageinput") || n.contains("chatbar")
-            || n.contains("textinputbar") {
-            styleComposer(view)
+        let isHeaderish =
+            blob.contains("navbar") || blob.contains("navigationbar")
+            || blob.contains("titleview") || blob.contains("username")
+            || blob.contains("threadname") || blob.contains("displayname")
+            || blob.contains("header") || blob.contains("navtitle")
+            || blob.contains("directthread") && blob.contains("header")
+
+        // Remove GG-tagged plates that were incorrectly placed on header/name regions
+        if isHeaderish || view is UILabel {
+            for sub in view.subviews {
+                if isGGTag(sub.tag) {
+                    sub.removeFromSuperview()
+                }
+            }
+        }
+        // Also remove full-width plates near top of window that aren't dock
+        if let win = view.window ?? (view as? UIWindow) {
+            let topBand = win.bounds.height * 0.18
+            if view.frame.maxY < topBand, view.bounds.width > win.bounds.width * 0.5 {
+                for sub in view.subviews where isGGTag(sub.tag) && sub.tag != GlassBubbleKit.navBubbleTag {
+                    // Keep small nav bubbles only
+                    if sub.bounds.width > 120 {
+                        sub.removeFromSuperview()
+                    }
+                }
+            }
         }
 
-        // Don't walk into message cells / media
-        if n.contains("messagecell") || n.contains("bubble") || n.contains("cellcontent") {
-            return
-        }
-        if view is UICollectionView || view is UITableView {
-            // Still check direct subviews that might be toolbars outside cells
-            for s in view.subviews where !(s is UICollectionViewCell || s is UITableViewCell) {
-                walk(s, depth: depth + 1)
+        if view is UICollectionViewCell || view is UITableViewCell {
+            for sub in view.subviews where isGGTag(sub.tag) {
+                sub.removeFromSuperview()
             }
             return
         }
-
         for s in view.subviews {
-            walk(s, depth: depth + 1)
+            stripBadOverlays(s, depth: depth + 1)
         }
     }
 
-    private func styleComposer(_ view: UIView) {
-        if GlassMediaExclusion.shouldSkipGlass(for: view) { return }
+    private func isGGTag(_ tag: Int) -> Bool {
+        tag == GlassBubbleKit.dockTag
+            || tag == GlassBubbleKit.selectedTag
+            || tag == GlassBubbleKit.plateTag
+            || tag == GlassBubbleKit.dmChromeTag
+            || tag == GlassBubbleKit.reelsChromeTag
+            || tag == GlassBubbleKit.presentationTag
+            || (tag >= GlassBubbleKit.navBubbleTag && tag < GlassBubbleKit.navBubbleTag &+ 32)
+            || (tag >= 0x4747_0000 && tag <= 0x4747_FFFF)
+    }
 
-        // Update existing blur rather than stacking
-        if let fx = view as? UIVisualEffectView {
-            fx.effect = GlassMaterialEngine.shared.blurEffect(
-                style: GlassPreferences.shared.style, dark: true, intensity: 0.65
-            )
-            return
+    // MARK: - Composer only
+
+    private func findComposer(in view: UIView, depth: Int) -> UIView? {
+        guard depth < 14 else { return nil }
+        let n = NSStringFromClass(type(of: view)).lowercased()
+        let label = (view.accessibilityLabel ?? "").lowercased()
+        let blob = n + " " + label
+
+        // Never treat header as composer
+        if blob.contains("navbar") || blob.contains("navigationbar") || blob.contains("titleview") {
+            return nil
         }
 
-        view.backgroundColor = .clear
-        view.isOpaque = false
+        let looksComposer =
+            (blob.contains("composer") || blob.contains("inputtoolbar")
+             || blob.contains("messageinput") || blob.contains("chatbar")
+             || blob.contains("textinput") || blob.contains("writebar")
+             || blob.contains("igdirect") && blob.contains("input"))
+            && view.bounds.height >= 36 && view.bounds.height <= 120
+            && view.bounds.width > 160
 
+        if looksComposer {
+            // Prefer bottom-of-screen
+            if let w = view.window {
+                let y = view.convert(CGPoint.zero, to: w).y
+                if y > w.bounds.height * 0.55 { return view }
+            } else {
+                return view
+            }
+        }
+
+        if view is UICollectionViewCell || view is UITableViewCell { return nil }
+        for s in view.subviews {
+            if let f = findComposer(in: s, depth: depth + 1) { return f }
+        }
+        return nil
+    }
+
+    private func styleComposer(_ host: UIView) {
         let prefs = GlassPreferences.shared
-        let inset = view.bounds.insetBy(dx: 6, dy: 4)
-        guard inset.width > 40, inset.height > 20 else { return }
+        // Soft plate behind composer only — inset, not full-bleed over names
+        let inset: CGFloat = 8
+        var f = host.bounds.insetBy(dx: inset, dy: 4)
+        guard f.width > 80, f.height > 28 else { return }
 
-        let b = GlassBubbleKit.installBubble(
-            into: view,
+        let plate = GlassBubbleKit.installBubble(
+            into: host,
             tag: GlassBubbleKit.dmChromeTag,
-            frame: inset,
+            frame: f,
             style: prefs.style,
-            intensity: max(0.55, prefs.intensity),
-            opacity: max(0.88, prefs.opacity)
+            intensity: max(0.55, prefs.intensity * 0.9),
+            opacity: max(0.75, prefs.opacity * 0.9)
         )
-        b.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        b.layer.cornerRadius = min(22, inset.height * 0.48)
-        if #available(iOS 13.0, *) { b.layer.cornerCurve = .continuous }
-
-        for sub in view.subviews where sub.tag != GlassBubbleKit.dmChromeTag {
-            view.bringSubviewToFront(sub)
+        plate.isUserInteractionEnabled = false
+        plate.layer.cornerRadius = min(prefs.cornerRadius, f.height * 0.45)
+        // Raise real controls
+        for sub in host.subviews {
+            if sub.tag == GlassBubbleKit.dmChromeTag { continue }
+            host.bringSubviewToFront(sub)
         }
     }
 }

@@ -113,8 +113,19 @@ import UIKit
 
 @objc public class GlassSettingsPresenter: NSObject {
 
+    /// True when the last present used the overlay window (not host VC).
+    @objc public static var usedOverlay = false
+
     @objc public static func present(from sourceView: UIView? = nil) {
         DispatchQueue.main.async {
+            // Avoid stacking multiple settings panels
+            if let top = GlassAppSupport.topViewController(),
+               top is UINavigationController,
+               top.presentingViewController != nil,
+               String(describing: type(of: top)).contains("Glass") {
+                return
+            }
+
             let vc = GlassSettingsViewController()
             let nav = UINavigationController(rootViewController: vc)
             nav.modalPresentationStyle = .pageSheet
@@ -124,11 +135,21 @@ import UIKit
                     sheet.prefersGrabberVisible = true
                 }
             }
-            // Prefer top VC first (safer). Overlay window only as fallback.
-            if let top = GlassAppSupport.topViewController() {
-                top.present(nav, animated: true)
+
+            // Prefer host top VC. Overlay only if no presentable VC.
+            if let top = GlassAppSupport.topViewController(), top.view.window != nil {
+                usedOverlay = false
+                if top.presentedViewController != nil {
+                    // Don't dismiss IG sheets aggressively — present on the presented one
+                    var leaf = top
+                    while let p = leaf.presentedViewController { leaf = p }
+                    leaf.present(nav, animated: true)
+                } else {
+                    top.present(nav, animated: true)
+                }
                 NSLog("[GlossyGlass] Settings panel presented on top VC")
             } else {
+                usedOverlay = true
                 GlassOverlayPresenter.shared.present(nav, animated: true)
                 NSLog("[GlossyGlass] Settings panel presented via overlay fallback")
             }
@@ -139,9 +160,11 @@ import UIKit
 
 private class GlassSettingsViewController: UIViewController {
     deinit {
-        // Dismiss only — never re-apply chrome from deinit (crash source)
+        // Only tear down overlay if we actually used it. Never re-apply chrome here.
+        guard GlassSettingsPresenter.usedOverlay else { return }
         DispatchQueue.main.async {
             GlassOverlayPresenter.shared.dismissOverlay()
+            GlassSettingsPresenter.usedOverlay = false
         }
     }
 
@@ -637,7 +660,7 @@ private class GlassSettingsViewController: UIViewController {
 
     @objc private func close() {
         dismiss(animated: true) {
-            GlassOverlayPresenter.shared.dismissOverlay()
+            if GlassSettingsPresenter.usedOverlay { GlassOverlayPresenter.shared.dismissOverlay(); GlassSettingsPresenter.usedOverlay = false }
         }
     }
 }

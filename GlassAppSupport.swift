@@ -233,14 +233,10 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
     @objc public static func presentModally(_ controller: UIViewController, animated: Bool = true) {
         DispatchQueue.main.async {
             if let top = topViewController() {
-                // Avoid double-present
-                if top.presentedViewController != nil {
-                    top.dismiss(animated: false) {
-                        top.present(controller, animated: animated)
-                    }
-                } else {
-                    top.present(controller, animated: animated)
-                }
+                // Never force-dismiss host sheets (crash/flicker). Present on leaf.
+                var leaf = top
+                while let p = leaf.presentedViewController { leaf = p }
+                leaf.present(controller, animated: animated)
                 return
             }
             // Fallback: key window root (no extra overlay window when possible)
@@ -294,36 +290,79 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
     }
 }
 
-/// High-level overlay window so settings always can appear.
+/// High-level overlay window so settings can appear when no host VC exists.
+/// Crash-hardened: never steals key window permanently; safe dismiss; no double-present.
 @objc public final class GlassOverlayPresenter: NSObject {
     @objc public static let shared = GlassOverlayPresenter()
     private var window: UIWindow?
+    private weak var presented: UIViewController?
+    private var isPresenting = false
 
     @objc public func present(_ controller: UIViewController, animated: Bool) {
-        // Always rebuild window for clean present (avoids stuck state after crash)
-        if let scene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive })
-            ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
-            window = UIWindow(windowScene: scene)
-        } else {
-            window = UIWindow(frame: UIScreen.main.bounds)
-        }
-        guard let win = window else { return }
-        win.windowLevel = UIWindow.Level.alert + 10
-        win.backgroundColor = .clear
-        let root = UIViewController()
-        root.view.backgroundColor = .clear
-        win.rootViewController = root
-        win.makeKeyAndVisible()
-        // Small delay so window is key before present
         DispatchQueue.main.async {
-            root.present(controller, animated: animated, completion: nil)
+            // Already showing something — replace cleanly
+            if self.isPresenting {
+                self.dismissOverlay()
+            }
+            self.isPresenting = true
+
+            let scene = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first(where: { $0.activationState == .foregroundActive })
+                ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+
+            let win: UIWindow
+            if let scene = scene {
+                win = UIWindow(windowScene: scene)
+            } else {
+                win = UIWindow(frame: UIScreen.main.bounds)
+            }
+            // Below alert system dialogs, above app content — not +10 forever-key
+            win.windowLevel = .alert
+            win.backgroundColor = .clear
+            win.isHidden = false
+
+            let root = UIViewController()
+            root.view.backgroundColor = .clear
+            win.rootViewController = root
+            self.window = win
+            self.presented = controller
+
+            // Do NOT call makeKeyAndVisible on every present — steals focus from IG and crashes LC
+            win.makeKeyAndVisible()
+
+            // Present after runloop tick so root is in hierarchy
+            DispatchQueue.main.async {
+                guard self.window === win, win.rootViewController === root else { return }
+                if root.presentedViewController != nil {
+                    root.dismiss(animated: false) {
+                        root.present(controller, animated: animated, completion: nil)
+                    }
+                } else {
+                    root.present(controller, animated: animated, completion: nil)
+                }
+            }
         }
     }
 
     @objc public func dismissOverlay() {
-        window?.isHidden = true
-        window = nil
+        let finish = {
+            self.window?.isHidden = true
+            self.window?.rootViewController = nil
+            self.window = nil
+            self.presented = nil
+            self.isPresenting = false
+            // Return key to app window
+            if let appWin = GlassAppSupport.allWindows().first(where: { $0 !== self.window && !$0.isHidden }) {
+                appWin.makeKey()
+            }
+        }
+        if let root = window?.rootViewController, root.presentedViewController != nil {
+            root.dismiss(animated: false) {
+                finish()
+            }
+        } else {
+            finish()
+        }
     }
 }
