@@ -17,171 +17,385 @@ jobs:
           echo "Xcode = $(xcodebuild -version | head -1)"
           mkdir -p GlossyGlass.xcodeproj
           cat > GlossyGlass.xcodeproj/project.pbxproj << 'ENDPROJECT'
-          // !$*UTF8*$!
-          {
-            archiveVersion = 1;
-            classes = {};
-            objectVersion = 56;
-            objects = {
-              A01 /* GlassView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B01; };
-              A02 /* GlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B02; };
-              A03 /* GlassSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03; };
-              A04 /* GlassNavigationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04; };
-              A05 /* GlassSwiftUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05; };
-              A06 /* GlassPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06; };
-              A07 /* GlassSettingsButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07; };
-              A08 /* GlassAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08; };
-              A09 /* GlassInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09; };
-              A0A /* GlassLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A; };
-              A0B /* GlassFirstLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B; };
-              A0C /* GlassPublicAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C; };
-              A0D /* GlassConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D; };
-              A0E /* GlassDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E; };
-              A0F /* GlassDeviceProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F; };
-              A10 /* GlassAppSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10; };
-              A11 /* GlassStyleApplicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B11; };
-              A12 /* GlassScreenProfileMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12; };
-              A13 /* GlassReadyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13; };
-              A14 /* GlassWelcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14; };
-              A15 /* GlassThemeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15; };
-              A16 /* GlassNativeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16; };
+// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {};
+  objectVersion = 56;
+  objects = {
+              A01 /* GlassAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = B01; };
+              A02 /* GlassAppSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B02; };
+              A03 /* GlassBubbleKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03; };
+              A04 /* GlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04; };
+              A05 /* GlassChromeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05; };
+              A06 /* GlassChromeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06; };
+              A07 /* GlassChromeShield.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07; };
+              A08 /* GlassConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08; };
+              A09 /* GlassContextChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09; };
+              A10 /* GlassDMChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10; };
+              A11 /* GlassDeviceProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B11; };
+              A12 /* GlassDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12; };
+              A13 /* GlassDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13; };
+              A14 /* GlassEffectPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14; };
+              A15 /* GlassFirstLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15; };
+              A16 /* GlassFloatingTabGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16; };
               A17 /* GlassHealthChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17; };
-              A18 /* GlassLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18; };
-              A19 /* GlassSyncBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19; };
-              A20 /* GlassUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20; };
-              A21 /* GlassLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = B21; };
-              A22 /* GlassHooks.m in Sources */ = {isa = PBXBuildFile; fileRef = B22; };
+              A18 /* GlassIGScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18; };
+              A19 /* GlassInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19; };
+              A20 /* GlassInstantShield.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20; };
+              A21 /* GlassInstantsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21; };
+              A22 /* GlassLiquidEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22; };
               A23 /* GlassLiquidTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B23; };
-              A24 /* GlassPrivateAPI.m in Sources */ = {isa = PBXBuildFile; fileRef = B24; };
-              A25 /* GlassPrivateBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25; };
-              A26 /* GlassLiquidEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26; };
-              A27 /* GlassEffectPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27; };
-              A28 /* GlassMaterialCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B28; };
-              A29 /* GlassIGScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29; };
-              A30 /* GlassEmbeddedLUT.c in Sources */ = {isa = PBXBuildFile; fileRef = B30; };
-              A31 /* GlassEmbeddedAssets.m in Sources */ = {isa = PBXBuildFile; fileRef = B31; };
-              A32 /* GlassChromeShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B32; };
-              A33 /* GlassSurfaceRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B33; };
-              A34 /* GlassChromeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34; };
-              A35 /* GlassFloatingTabGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35; };
-              A36 /* GlassMaterialEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B36; };
-              A37 /* GlassContextChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37; };
-              A38 /* GlassInstantsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38; };
-              A39 /* GlassInstantShield.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39; };
-              A40 /* GlassDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40; };
-              A41 /* GlassMutationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41; };
-              A42 /* GlassMediaExclusion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42; };
-              A47 /* GlassUICoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47; };
-              A46 /* GlassDMChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46; };
-              A45 /* GlassNavChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45; };
-              A44 /* GlassChromeShield.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44; };
-              A43 /* GlassBubbleKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43; };
-              B01 /* GlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassView.swift; sourceTree = "<group>"; };
-              B02 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
-              B03 /* GlassSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSlider.swift; sourceTree = "<group>"; };
-              B04 /* GlassNavigationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNavigationHelper.swift; sourceTree = "<group>"; };
-              B05 /* GlassSwiftUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSwiftUI.swift; sourceTree = "<group>"; };
-              B06 /* GlassPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPreferences.swift; sourceTree = "<group>"; };
-              B07 /* GlassSettingsButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSettingsButton.swift; sourceTree = "<group>"; };
-              B08 /* GlassAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassAnimations.swift; sourceTree = "<group>"; };
-              B09 /* GlassInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInjector.swift; sourceTree = "<group>"; };
-              B0A /* GlassLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLoader.swift; sourceTree = "<group>"; };
-              B0B /* GlassFirstLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFirstLaunch.swift; sourceTree = "<group>"; };
-              B0C /* GlassPublicAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPublicAPI.swift; sourceTree = "<group>"; };
-              B0D /* GlassConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassConfiguration.swift; sourceTree = "<group>"; };
-              B0E /* GlassDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDiagnostics.swift; sourceTree = "<group>"; };
-              B0F /* GlassDeviceProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDeviceProfiler.swift; sourceTree = "<group>"; };
-              B10 /* GlassAppSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassAppSupport.swift; sourceTree = "<group>"; };
-              B11 /* GlassStyleApplicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassStyleApplicator.swift; sourceTree = "<group>"; };
-              B12 /* GlassScreenProfileMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassScreenProfileMonitor.swift; sourceTree = "<group>"; };
-              B13 /* GlassReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassReadyGate.swift; sourceTree = "<group>"; };
-              B14 /* GlassWelcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassWelcome.swift; sourceTree = "<group>"; };
-              B15 /* GlassThemeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassThemeEngine.swift; sourceTree = "<group>"; };
-              B16 /* GlassNativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNativeBridge.swift; sourceTree = "<group>"; };
+              A24 /* GlassLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24; };
+              A25 /* GlassLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25; };
+              A26 /* GlassMaterialCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26; };
+              A27 /* GlassMaterialEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27; };
+              A28 /* GlassMediaExclusion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B28; };
+              A29 /* GlassMutationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29; };
+              A30 /* GlassNativeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30; };
+              A31 /* GlassNavChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31; };
+              A32 /* GlassNavigationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B32; };
+              A33 /* GlassPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B33; };
+              A34 /* GlassPrivateBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34; };
+              A35 /* GlassPublicAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35; };
+              A36 /* GlassReadyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B36; };
+              A37 /* GlassScreenProfileMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37; };
+              A38 /* GlassSettingsButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38; };
+              A39 /* GlassSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39; };
+              A40 /* GlassStyleApplicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40; };
+              A41 /* GlassSurfaceRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41; };
+              A42 /* GlassSwiftUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42; };
+              A43 /* GlassSyncBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B43; };
+              A44 /* GlassThemeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44; };
+              A45 /* GlassUICoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45; };
+              A46 /* GlassUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46; };
+              A47 /* GlassView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47; };
+              A48 /* GlassWelcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48; };
+              A49 /* GlassEmbeddedAssets.m in Sources */ = {isa = PBXBuildFile; fileRef = B49; };
+              A50 /* GlassHooks.m in Sources */ = {isa = PBXBuildFile; fileRef = B50; };
+              A51 /* GlassLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = B51; };
+              A52 /* GlassPrivateAPI.m in Sources */ = {isa = PBXBuildFile; fileRef = B52; };
+              A53 /* GlassEmbeddedLUT.c in Sources */ = {isa = PBXBuildFile; fileRef = B53; };
+              B01 /* GlassAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassAnimations.swift; sourceTree = "<group>"; };
+              B02 /* GlassAppSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassAppSupport.swift; sourceTree = "<group>"; };
+              B03 /* GlassBubbleKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassBubbleKit.swift; sourceTree = "<group>"; };
+              B04 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
+              B05 /* GlassChromeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeCoordinator.swift; sourceTree = "<group>"; };
+              B06 /* GlassChromeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeShell.swift; sourceTree = "<group>"; };
+              B07 /* GlassChromeShield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeShield.swift; sourceTree = "<group>"; };
+              B08 /* GlassConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassConfiguration.swift; sourceTree = "<group>"; };
+              B09 /* GlassContextChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassContextChrome.swift; sourceTree = "<group>"; };
+              B10 /* GlassDMChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDMChrome.swift; sourceTree = "<group>"; };
+              B11 /* GlassDeviceProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDeviceProfiler.swift; sourceTree = "<group>"; };
+              B12 /* GlassDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDiagnostics.swift; sourceTree = "<group>"; };
+              B13 /* GlassDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDock.swift; sourceTree = "<group>"; };
+              B14 /* GlassEffectPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassEffectPipeline.swift; sourceTree = "<group>"; };
+              B15 /* GlassFirstLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFirstLaunch.swift; sourceTree = "<group>"; };
+              B16 /* GlassFloatingTabGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFloatingTabGlass.swift; sourceTree = "<group>"; };
               B17 /* GlassHealthChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassHealthChecker.swift; sourceTree = "<group>"; };
-              B18 /* GlassLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLocator.swift; sourceTree = "<group>"; };
-              B19 /* GlassSyncBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSyncBus.swift; sourceTree = "<group>"; };
-              B20 /* GlassUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUpdateChecker.swift; sourceTree = "<group>"; };
-              B21 /* GlassLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassLoader.m; sourceTree = "<group>"; };
-              B22 /* GlassHooks.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassHooks.m; sourceTree = "<group>"; };
+              B18 /* GlassIGScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassIGScanner.swift; sourceTree = "<group>"; };
+              B19 /* GlassInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInjector.swift; sourceTree = "<group>"; };
+              B20 /* GlassInstantShield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantShield.swift; sourceTree = "<group>"; };
+              B21 /* GlassInstantsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantsChrome.swift; sourceTree = "<group>"; };
+              B22 /* GlassLiquidEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLiquidEngine.swift; sourceTree = "<group>"; };
               B23 /* GlassLiquidTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLiquidTabBar.swift; sourceTree = "<group>"; };
-              B24 /* GlassPrivateAPI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassPrivateAPI.m; sourceTree = "<group>"; };
-              B25 /* GlassPrivateBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPrivateBridge.swift; sourceTree = "<group>"; };
-              B26 /* GlassLiquidEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLiquidEngine.swift; sourceTree = "<group>"; };
-              B27 /* GlassEffectPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassEffectPipeline.swift; sourceTree = "<group>"; };
-              B28 /* GlassMaterialCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMaterialCatalog.swift; sourceTree = "<group>"; };
-              B29 /* GlassIGScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassIGScanner.swift; sourceTree = "<group>"; };
-              B30 /* GlassEmbeddedLUT.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GlassEmbeddedLUT.c; sourceTree = "<group>"; };
-              B31 /* GlassEmbeddedAssets.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassEmbeddedAssets.m; sourceTree = "<group>"; };
-              B32 /* GlassChromeShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeShell.swift; sourceTree = "<group>"; };
-              B33 /* GlassSurfaceRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurfaceRouter.swift; sourceTree = "<group>"; };
-              B34 /* GlassChromeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeCoordinator.swift; sourceTree = "<group>"; };
-              B35 /* GlassFloatingTabGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFloatingTabGlass.swift; sourceTree = "<group>"; };
-              B36 /* GlassMaterialEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMaterialEngine.swift; sourceTree = "<group>"; };
-              B37 /* GlassContextChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassContextChrome.swift; sourceTree = "<group>"; };
-              B38 /* GlassInstantsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantsChrome.swift; sourceTree = "<group>"; };
-              B39 /* GlassInstantShield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassInstantShield.swift; sourceTree = "<group>"; };
-              B40 /* GlassDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDock.swift; sourceTree = "<group>"; };
-              B41 /* GlassMutationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMutationGate.swift; sourceTree = "<group>"; };
-              B42 /* GlassMediaExclusion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMediaExclusion.swift; sourceTree = "<group>"; };
-              B47 /* GlassUICoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUICoordinator.swift; sourceTree = "<group>"; };
-              B46 /* GlassDMChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassDMChrome.swift; sourceTree = "<group>"; };
-              B45 /* GlassNavChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNavChrome.swift; sourceTree = "<group>"; };
-              B44 /* GlassChromeShield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChromeShield.swift; sourceTree = "<group>"; };
-              B43 /* GlassBubbleKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassBubbleKit.swift; sourceTree = "<group>"; };
-              C01 /* GlossyGlass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = GlossyGlass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
-              D01 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-              E01 = {isa = PBXGroup; children = (E02, E03); sourceTree = "<group>"; };
-              E02 /* Sources */ = {isa = PBXGroup; children = (B01, B02, B03, B04, B05, B06, B07, B08, B09, B0A, B0B, B0C, B0D, B0E, B0F, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B40, B41, B42, B43); name = Sources; sourceTree = "<group>"; };
-              E03 /* Products */ = {isa = PBXGroup; children = (C01); name = Products; sourceTree = "<group>"; };
-              F01 /* GlossyGlass */ = {isa = PBXNativeTarget; buildConfigurationList = G02; buildPhases = (F02, D01); buildRules = (); dependencies = (); name = GlossyGlass; productName = GlossyGlass; productReference = C01; productType = "com.apple.product-type.library.dynamic"; };
-              F02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A01, A02, A03, A04, A05, A06, A07, A08, A09, A0A, A0B, A0C, A0D, A0E, A0F, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, A30, A31, A32, A33, A34, A35, A36, A37, A38, A39, A40, A41, A42, A43); runOnlyForDeploymentPostprocessing = 0; };
-              H01 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; }; buildConfigurationList = G01; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = E01; productRefGroup = E03; projectDirPath = ""; projectRoot = ""; targets = (F01); };
-              I01 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; VALIDATE_PRODUCT = YES; }; name = Release; };
-              I02 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_REQUIRED = NO; DYLIB_COMPATIBILITY_VERSION = 1; DYLIB_CURRENT_VERSION = 1; EXECUTABLE_PREFIX = ""; GENERATE_INFOPLIST_FILE = YES; INSTALL_PATH = "@rpath"; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"); OTHER_LDFLAGS = (
-              "-lz","-framework", Foundation, "-framework", UIKit, "-framework", QuartzCore, "-weak_framework", SwiftUI); PRODUCT_BUNDLE_IDENTIFIER = com.killswitch.GlossyGlass; PRODUCT_NAME = GlossyGlass; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = iphoneos; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
-              G01 /* Build configuration list for PBXProject "GlossyGlass" */ = {isa = XCConfigurationList; buildConfigurations = (I01); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-              G02 /* Build configuration list for PBXNativeTarget "GlossyGlass" */ = {isa = XCConfigurationList; buildConfigurations = (I02); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-            };
-            rootObject = H01 /* Project object */;
-          }
+              B24 /* GlassLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLoader.swift; sourceTree = "<group>"; };
+              B25 /* GlassLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLocator.swift; sourceTree = "<group>"; };
+              B26 /* GlassMaterialCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMaterialCatalog.swift; sourceTree = "<group>"; };
+              B27 /* GlassMaterialEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMaterialEngine.swift; sourceTree = "<group>"; };
+              B28 /* GlassMediaExclusion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMediaExclusion.swift; sourceTree = "<group>"; };
+              B29 /* GlassMutationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassMutationGate.swift; sourceTree = "<group>"; };
+              B30 /* GlassNativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNativeBridge.swift; sourceTree = "<group>"; };
+              B31 /* GlassNavChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNavChrome.swift; sourceTree = "<group>"; };
+              B32 /* GlassNavigationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassNavigationHelper.swift; sourceTree = "<group>"; };
+              B33 /* GlassPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPreferences.swift; sourceTree = "<group>"; };
+              B34 /* GlassPrivateBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPrivateBridge.swift; sourceTree = "<group>"; };
+              B35 /* GlassPublicAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPublicAPI.swift; sourceTree = "<group>"; };
+              B36 /* GlassReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassReadyGate.swift; sourceTree = "<group>"; };
+              B37 /* GlassScreenProfileMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassScreenProfileMonitor.swift; sourceTree = "<group>"; };
+              B38 /* GlassSettingsButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSettingsButton.swift; sourceTree = "<group>"; };
+              B39 /* GlassSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSlider.swift; sourceTree = "<group>"; };
+              B40 /* GlassStyleApplicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassStyleApplicator.swift; sourceTree = "<group>"; };
+              B41 /* GlassSurfaceRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurfaceRouter.swift; sourceTree = "<group>"; };
+              B42 /* GlassSwiftUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSwiftUI.swift; sourceTree = "<group>"; };
+              B43 /* GlassSyncBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSyncBus.swift; sourceTree = "<group>"; };
+              B44 /* GlassThemeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassThemeEngine.swift; sourceTree = "<group>"; };
+              B45 /* GlassUICoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUICoordinator.swift; sourceTree = "<group>"; };
+              B46 /* GlassUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUpdateChecker.swift; sourceTree = "<group>"; };
+              B47 /* GlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassView.swift; sourceTree = "<group>"; };
+              B48 /* GlassWelcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassWelcome.swift; sourceTree = "<group>"; };
+              B49 /* GlassEmbeddedAssets.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassEmbeddedAssets.m; sourceTree = "<group>"; };
+              B50 /* GlassHooks.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassHooks.m; sourceTree = "<group>"; };
+              B51 /* GlassLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassLoader.m; sourceTree = "<group>"; };
+              B52 /* GlassPrivateAPI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GlassPrivateAPI.m; sourceTree = "<group>"; };
+              B53 /* GlassEmbeddedLUT.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GlassEmbeddedLUT.c; sourceTree = "<group>"; };
+              BP /* GlossyGlass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = GlossyGlass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+              G1 /* Root */ = {
+                isa = PBXGroup;
+                children = (
+                B01,
+                B02,
+                B03,
+                B04,
+                B05,
+                B06,
+                B07,
+                B08,
+                B09,
+                B10,
+                B11,
+                B12,
+                B13,
+                B14,
+                B15,
+                B16,
+                B17,
+                B18,
+                B19,
+                B20,
+                B21,
+                B22,
+                B23,
+                B24,
+                B25,
+                B26,
+                B27,
+                B28,
+                B29,
+                B30,
+                B31,
+                B32,
+                B33,
+                B34,
+                B35,
+                B36,
+                B37,
+                B38,
+                B39,
+                B40,
+                B41,
+                B42,
+                B43,
+                B44,
+                B45,
+                B46,
+                B47,
+                B48,
+                B49,
+                B50,
+                B51,
+                B52,
+                B53,
+                  BP,
+                );
+                sourceTree = "<group>";
+              };
+              P1 /* Products */ = {
+                isa = PBXGroup;
+                children = ( BP, );
+                name = Products;
+                sourceTree = "<group>";
+              };
+              T1 /* GlossyGlass */ = {
+                isa = PBXNativeTarget;
+                buildConfigurationList = CLT;
+                buildPhases = ( Sources, Frameworks, );
+                buildRules = ( );
+                dependencies = ( );
+                name = GlossyGlass;
+                productName = GlossyGlass;
+                productReference = BP;
+                productType = "com.apple.product-type.library.dynamic";
+              };
+              PRJ /* Project object */ = {
+                isa = PBXProject;
+                attributes = { LastUpgradeCheck = 1500; };
+                buildConfigurationList = CLP;
+                compatibilityVersion = "Xcode 14.0";
+                developmentRegion = en;
+                hasScannedForEncodings = 0;
+                knownRegions = ( en, Base, );
+                mainGroup = G1;
+                productRefGroup = P1;
+                projectDirPath = "";
+                projectRoot = "";
+                targets = ( T1, );
+              };
+              Sources /* Sources */ = {
+                isa = PBXSourcesBuildPhase;
+                buildActionMask = 2147483647;
+                files = (
+                A01,
+                A02,
+                A03,
+                A04,
+                A05,
+                A06,
+                A07,
+                A08,
+                A09,
+                A10,
+                A11,
+                A12,
+                A13,
+                A14,
+                A15,
+                A16,
+                A17,
+                A18,
+                A19,
+                A20,
+                A21,
+                A22,
+                A23,
+                A24,
+                A25,
+                A26,
+                A27,
+                A28,
+                A29,
+                A30,
+                A31,
+                A32,
+                A33,
+                A34,
+                A35,
+                A36,
+                A37,
+                A38,
+                A39,
+                A40,
+                A41,
+                A42,
+                A43,
+                A44,
+                A45,
+                A46,
+                A47,
+                A48,
+                A49,
+                A50,
+                A51,
+                A52,
+                A53,
+                );
+                runOnlyForDeploymentPostprocessing = 0;
+              };
+              Frameworks /* Frameworks */ = {
+                isa = PBXFrameworksBuildPhase;
+                buildActionMask = 2147483647;
+                files = ( );
+                runOnlyForDeploymentPostprocessing = 0;
+              };
+              DBG /* Debug */ = {
+                isa = XCBuildConfiguration;
+                buildSettings = {
+                  ALWAYS_SEARCH_USER_PATHS = NO;
+                  CLANG_ENABLE_MODULES = YES;
+                  CLANG_ENABLE_OBJC_ARC = YES;
+                  COPY_PHASE_STRIP = NO;
+                  DEBUG_INFORMATION_FORMAT = dwarf;
+                  ENABLE_TESTABILITY = YES;
+                  GCC_DYNAMIC_NO_PIC = NO;
+                  IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+                  ONLY_ACTIVE_ARCH = YES;
+                  SDKROOT = iphoneos;
+                  SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+                  SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+                };
+                name = Debug;
+              };
+              REL /* Release */ = {
+                isa = XCBuildConfiguration;
+                buildSettings = {
+                  ALWAYS_SEARCH_USER_PATHS = NO;
+                  CLANG_ENABLE_MODULES = YES;
+                  CLANG_ENABLE_OBJC_ARC = YES;
+                  COPY_PHASE_STRIP = NO;
+                  DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+                  IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+                  SDKROOT = iphoneos;
+                  SWIFT_COMPILATION_MODE = wholemodule;
+                  SWIFT_OPTIMIZATION_LEVEL = "-O";
+                  VALIDATE_PRODUCT = YES;
+                };
+                name = Release;
+              };
+              TD /* Target Debug */ = {
+                isa = XCBuildConfiguration;
+                buildSettings = {
+                  CODE_SIGNING_ALLOWED = NO;
+                  CODE_SIGN_IDENTITY = "";
+                  DYLIB_COMPATIBILITY_VERSION = 1;
+                  DYLIB_CURRENT_VERSION = 1;
+                  DYLIB_INSTALL_NAME_BASE = "@rpath";
+                  EXECUTABLE_PREFIX = "";
+                  GENERATE_INFOPLIST_FILE = YES;
+                  INSTALL_PATH = "@rpath";
+                  OTHER_LDFLAGS = (
+                    "-framework", UIKit,
+                    "-framework", Foundation,
+                    "-framework", SwiftUI,
+                    "-framework", QuartzCore,
+                    "-framework", AVFoundation,
+                  );
+                  PRODUCT_BUNDLE_IDENTIFIER = com.glossyglass.tweak;
+                  PRODUCT_NAME = GlossyGlass;
+                  SKIP_INSTALL = YES;
+                  SWIFT_VERSION = 5.0;
+                  TARGETED_DEVICE_FAMILY = "1,2";
+                };
+                name = Debug;
+              };
+              TR /* Target Release */ = {
+                isa = XCBuildConfiguration;
+                buildSettings = {
+                  CODE_SIGNING_ALLOWED = NO;
+                  CODE_SIGN_IDENTITY = "";
+                  DYLIB_COMPATIBILITY_VERSION = 1;
+                  DYLIB_CURRENT_VERSION = 1;
+                  DYLIB_INSTALL_NAME_BASE = "@rpath";
+                  EXECUTABLE_PREFIX = "";
+                  GENERATE_INFOPLIST_FILE = YES;
+                  INSTALL_PATH = "@rpath";
+                  OTHER_LDFLAGS = (
+                    "-framework", UIKit,
+                    "-framework", Foundation,
+                    "-framework", SwiftUI,
+                    "-framework", QuartzCore,
+                    "-framework", AVFoundation,
+                  );
+                  PRODUCT_BUNDLE_IDENTIFIER = com.glossyglass.tweak;
+                  PRODUCT_NAME = GlossyGlass;
+                  SKIP_INSTALL = YES;
+                  SWIFT_VERSION = 5.0;
+                  TARGETED_DEVICE_FAMILY = "1,2";
+                };
+                name = Release;
+              };
+              CLP /* Project configs */ = {
+                isa = XCConfigurationList;
+                buildConfigurations = ( DBG, REL, );
+                defaultConfigurationIsVisible = 0;
+                defaultConfigurationName = Release;
+              };
+              CLT /* Target configs */ = {
+                isa = XCConfigurationList;
+                buildConfigurations = ( TD, TR, );
+                defaultConfigurationIsVisible = 0;
+                defaultConfigurationName = Release;
+              };
+  };
+  rootObject = PRJ;
+}
+
           ENDPROJECT
-          echo "Building with xcodebuild..."
-          xcodebuild \
-            -project GlossyGlass.xcodeproj \
-            -target GlossyGlass \
-            -configuration Release \
-            -sdk iphoneos \
-            -arch arm64 \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
-          DYLIB=$(find build -name "GlossyGlass.dylib" | head -1)
-          if [ -z "$DYLIB" ]; then
-            echo "ERROR: dylib not found"
-            find build -type f | head -40
-            exit 1
-          fi
-          mkdir -p output
-          cp "$DYLIB" output/GlossyGlass.dylib
-          echo "=== file ==="
-          file output/GlossyGlass.dylib
-          echo "=== LC_BUILD_VERSION ==="
-          otool -l output/GlossyGlass.dylib | grep -A8 LC_BUILD_VERSION || true
-          if otool -l output/GlossyGlass.dylib | grep -q "platform 1"; then
-            echo "ERROR: This is a macOS binary (platform 1)"
-            exit 1
-          fi
-          if otool -l output/GlossyGlass.dylib | grep -q "platform 2"; then
-            echo "✅ SUCCESS: Real iOS binary (platform 2)"
-          else
-            echo "Platform info:"
-            otool -l output/GlossyGlass.dylib | grep -A10 LC_BUILD_VERSION || true
-          fi
-          ls -la output/
-      - name: Upload
-        uses: actions/upload-artifact@v4
+          xcodebuild -project GlossyGlass.xcodeproj -target GlossyGlass -configuration Release -sdk iphoneos -arch arm64 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=- build
+          DYLIB=$(find build -name 'GlossyGlass.dylib' | head -1)
+          echo "Built: $DYLIB"
+          ls -lh "$DYLIB"
+          cp "$DYLIB" GlossyGlass.dylib
+      - uses: actions/upload-artifact@v4
         with:
           name: GlossyGlass-dylib
-          path: output/GlossyGlass.dylib
-          retention-days: 30
+          path: GlossyGlass.dylib
