@@ -136,7 +136,6 @@ private class GlassSettingsViewController: UIViewController {
     deinit {
         DispatchQueue.main.async { GlassOverlayPresenter.shared.dismissOverlay() }
     }
-    }
 
     private let prefs = GlassPreferences.shared
 
