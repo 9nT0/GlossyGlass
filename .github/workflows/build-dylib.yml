@@ -1,4 +1,3 @@
-
 name: Build iOS dylib
 on:
   workflow_dispatch:
