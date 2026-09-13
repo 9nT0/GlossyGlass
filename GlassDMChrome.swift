@@ -124,7 +124,7 @@ import UIKit
         let prefs = GlassPreferences.shared
         // Soft plate behind composer only — inset, not full-bleed over names
         let inset: CGFloat = 8
-        var f = host.bounds.insetBy(dx: inset, dy: 4)
+        let f = host.bounds.insetBy(dx: inset, dy: 4)
         guard f.width > 80, f.height > 28 else { return }
 
         let plate = GlassBubbleKit.installBubble(

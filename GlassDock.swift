@@ -61,9 +61,7 @@ import UIKit
         guard depth < 16 else { return nil }
         let n = NSStringFromClass(type(of: view)).lowercased()
         if view is UITabBar { return view }
-        if n.contains("igtabbar") || n.contains("maintabbar") || n.contains("tabbarcontroller") {
-            // Prefer the bar view itself if this is a controller wrapper
-            if let tab = view as? UITabBarController { return tab.tabBar }
+        if n.contains("igtabbar") || n.contains("maintabbar") {
             if view.bounds.height > 28, view.bounds.height < 120 { return view }
         }
         if n.contains("tabbar") && view.bounds.width > 200 && view.bounds.height > 28 && view.bounds.height < 100 {
@@ -197,9 +195,11 @@ import UIKit
                 || (sub is UIControl && sub.bounds.width < 90)
             guard isItem, sub.bounds.width > 10, sub.bounds.height > 10 else { continue }
             items.append(sub)
-            let highlighted = sub.isSelected || (sub as? UIControl)?.isSelected == true
+            let ctrl = sub as? UIControl
+            let highlighted = ctrl?.isSelected == true
+                || ctrl?.isHighlighted == true
                 || sub.tintColor == .systemBlue
-                || (sub.alpha > 0.95 && sub.transform != .identity)
+                || abs(sub.transform.a - 1.0) > 0.01
             if highlighted { selected = sub; lastSelectedIndex = index }
             index += 1
         }

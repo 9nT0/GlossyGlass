@@ -158,7 +158,7 @@ public struct GlassSurfaceRecipe {
     private func detectFromTabIn(_ view: UIView) -> GlassSurfaceKind? {
         // Only real UITabBarController — never KVC selectedIndex on random IG views
         // (IGTabBarControllerSwipeCollectionView crashes on value(forKey: "selectedIndex"))
-        if let tab = view as? UITabBarController {
+        if false, let tab = Optional<UITabBarController>.none {
             return mapTabIndex(tab.selectedIndex)
         }
         if let bar = view as? UITabBar, let vc = bar.delegate as? UITabBarController {
