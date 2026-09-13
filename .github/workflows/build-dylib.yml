@@ -1,3 +1,4 @@
+
 name: Build iOS dylib
 on:
   workflow_dispatch:
@@ -18,8 +19,8 @@ jobs:
           set -euo pipefail
           echo "Xcode = $(xcodebuild -version | head -1)"
 
-          # Discover sources dynamically (no hardcoded pbxproj in YAML)
-          SWIFT_FILES=($(ls -1 *.swift 2>/dev/null | sort || true))
+          # Discover sources dynamically — exclude Package.swift / SPM / docs
+          SWIFT_FILES=($(ls -1 *.swift 2>/dev/null | grep -v -E '^(Package)\.swift$' | sort || true))
           OBJC_FILES=($(ls -1 *.m 2>/dev/null | sort || true))
           C_FILES=($(ls -1 *.c 2>/dev/null | sort || true))
 
@@ -34,7 +35,8 @@ jobs:
           require 'fileutils'
           FileUtils.mkdir_p('GlossyGlass.xcodeproj')
 
-          swift = Dir['*.swift'].sort
+          exclude = %w[Package.swift]
+          swift = Dir['*.swift'].sort.reject { |f| exclude.include?(f) }
           objc  = Dir['*.m'].sort
           c     = Dir['*.c'].sort
           all   = swift + objc + c
