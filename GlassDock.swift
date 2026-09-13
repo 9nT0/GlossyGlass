@@ -1,22 +1,18 @@
 import UIKit
 
-/// Glass-owned floating tab dock.
-/// Keeps Instagram tab actions; owns dock frame so IG can't resize the glass container.
+/// Small floating iOS-26 tab dock + moving selected bubble.
+/// Keeps real IG tab buttons/actions — only paints plate + indicator.
 @objc public final class GlassDock: NSObject {
 
     @objc public static let shared = GlassDock()
-
-    private let dockTag = 0x4747_444B // GGDK
-    private let plateTag = 0x4747_4D41
-    private weak var hostBar: UIView?
     private var lastLayout: TimeInterval = 0
+    private var lastSelectedIndex: Int = -1
 
     private override init() { super.init() }
 
     @objc public func attachIfNeeded() {
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode, prefs.styleTabBar else { return }
-
         for w in GlassAppSupport.allWindows() {
             if let bar = findTabBar(in: w, depth: 0) {
                 install(on: bar)
@@ -25,12 +21,14 @@ import UIKit
         }
     }
 
+    @objc public func onLayout(_ bar: UIView) {
+        install(on: bar)
+    }
+
     private func findTabBar(in view: UIView, depth: Int) -> UIView? {
         guard depth < 12 else { return nil }
-        let lower = NSStringFromClass(type(of: view)).lowercased()
-        if view is UITabBar || lower.contains("igtabbar") {
-            return view
-        }
+        let n = NSStringFromClass(type(of: view)).lowercased()
+        if view is UITabBar || n.contains("igtabbar") { return view }
         for s in view.subviews {
             if let f = findTabBar(in: s, depth: depth + 1) { return f }
         }
@@ -39,94 +37,114 @@ import UIKit
 
     private func install(on bar: UIView) {
         let now = CFAbsoluteTimeGetCurrent()
-        if now - lastLayout < 0.08 { return }
+        if now - lastLayout < 0.06 { return }
         lastLayout = now
-        hostBar = bar
 
-        // Neutralize stock full-width fill
-        GlassMaterialEngine.shared.neutralizeStockChrome(bar)
+        if GlassMediaExclusion.shouldSkipGlass(for: bar) { return }
+
+        // Full bar transparent — glass only on floating dock
+        GlassChromeShield.shared.neutralizeStock(bar)
         if let tab = bar as? UITabBar {
             GlassNavigationHelper.applyTabBarStyle(to: tab)
         }
 
         let b = bar.bounds
-        guard b.width > 80, b.height > 20 else { return }
-
-        // Glass-owned dock frame — smaller, inset, continuous
-        let side: CGFloat = 20
-        let dockH: CGFloat = 38
-        let y: CGFloat = 6
-        let dockFrame = CGRect(x: side, y: y, width: b.width - side * 2, height: dockH)
+        guard b.width > 100, b.height > 28 else { return }
 
         let prefs = GlassPreferences.shared
-        let effect = GlassMaterialEngine.shared.blurEffect(
-            style: prefs.style, dark: true, intensity: max(0.65, prefs.intensity)
+        // SMALL floating dock — inset, not edge-to-edge
+        let side: CGFloat = 18
+        let dockH: CGFloat = 50
+        let bottomPad: CGFloat = max(2, bar.safeAreaInsets.bottom > 0 ? 4 : 8)
+        let y = max(4, b.height - dockH - bottomPad)
+        let dockFrame = CGRect(x: side, y: y, width: b.width - side * 2, height: dockH)
+
+        let plate = GlassBubbleKit.installBubble(
+            into: bar,
+            tag: GlassBubbleKit.dockTag,
+            frame: dockFrame,
+            style: prefs.style,
+            intensity: max(0.7, prefs.intensity),
+            opacity: max(0.92, prefs.opacity)
         )
+        // Also set plateTag so older strip code finds it
+        plate.tag = GlassBubbleKit.dockTag
 
-        let plate: UIVisualEffectView
-        if let e = bar.viewWithTag(plateTag) as? UIVisualEffectView {
-            plate = e
-            plate.effect = effect
-        } else {
-            plate = UIVisualEffectView(effect: effect)
-            plate.tag = plateTag
-            plate.isUserInteractionEnabled = false
-            plate.clipsToBounds = true
-            bar.insertSubview(plate, at: 0)
-        }
-        plate.frame = dockFrame
-        plate.layer.cornerRadius = dockH * 0.48
-        if #available(iOS 13.0, *) { plate.layer.cornerCurve = .continuous }
-        plate.alpha = max(0.92, prefs.opacity)
-
-        // Inner tint + rim on contentView only
-        GlassMaterialEngine.shared.install(into: bar, style: prefs.style, intensity: prefs.intensity, opacity: prefs.opacity, compact: true)
-        // Override frame after install (install sets its own geometry)
-        if let p = bar.viewWithTag(plateTag) as? UIVisualEffectView {
-            p.frame = dockFrame
-            p.layer.cornerRadius = dockH * 0.48
-            if #available(iOS 13.0, *) { p.layer.cornerCurve = .continuous }
-        }
-
-        // Move tab item views into dock vertical band (keep actions — only frames)
+        // Align IG tab item views into dock band (keep actions)
         alignItems(in: bar, dock: dockFrame)
 
-        // Selected lens
-        if let tab = bar as? UITabBar, let items = tab.items, let sel = tab.selectedItem,
-           let idx = items.firstIndex(of: sel) {
-            GlassMaterialEngine.shared.updateSelectedLens(in: bar, index: idx, count: items.count)
-        }
+        // Moving selected bubble
+        updateSelectedBubble(in: bar, dock: dockFrame)
 
-        for sub in bar.subviews where sub.tag != plateTag {
+        // Icons above glass
+        for sub in bar.subviews {
+            if sub.tag == GlassBubbleKit.dockTag || sub.tag == GlassBubbleKit.selectedTag { continue }
             bar.bringSubviewToFront(sub)
+        }
+        // Selected under icons but above plate
+        if let sel = bar.viewWithTag(GlassBubbleKit.selectedTag) {
+            bar.insertSubview(sel, aboveSubview: plate)
         }
     }
 
     private func alignItems(in bar: UIView, dock: CGRect) {
         let midY = dock.midY
         for sub in bar.subviews {
-            if sub.tag == plateTag { continue }
+            if sub.tag == GlassBubbleKit.dockTag || sub.tag == GlassBubbleKit.selectedTag { continue }
             let sn = NSStringFromClass(type(of: sub)).lowercased()
-            // Tab buttons / item containers
             if sn.contains("button") || sn.contains("tabbarbutton") || sn.contains("item")
-                || (sub is UIControl && sub.bounds.width < bar.bounds.width * 0.3) {
+                || (sub is UIControl && sub.bounds.width < bar.bounds.width * 0.28) {
                 var f = sub.frame
-                guard f.height > 4, f.width > 4 else { continue }
-                // Keep x (IG owns horizontal layout for 5 tabs); lock y to dock center
+                guard f.height > 6, f.width > 6 else { continue }
                 f.origin.y = midY - f.height * 0.5
-                // Clamp width so items stay inside dock horizontally if overflowing
-                if f.maxX > dock.maxX - 4 {
-                    f.origin.x = max(dock.minX + 4, dock.maxX - 4 - f.width)
-                }
-                if f.minX < dock.minX + 4 {
-                    f.origin.x = dock.minX + 4
-                }
                 sub.frame = f
             }
         }
     }
 
-    @objc public func onLayout(_ bar: UIView) {
-        install(on: bar)
+    private func updateSelectedBubble(in bar: UIView, dock: CGRect) {
+        var index = 0
+        var count = 5
+        if let tab = bar as? UITabBar, let items = tab.items, let sel = tab.selectedItem,
+           let idx = items.firstIndex(of: sel) {
+            index = idx
+            count = max(1, items.count)
+        }
+
+        let slot = dock.width / CGFloat(count)
+        let bubbleW = min(56, slot * 0.72)
+        let bubbleH = min(40, dock.height * 0.72)
+        let target = CGRect(
+            x: dock.minX + CGFloat(index) * slot + (slot - bubbleW) * 0.5,
+            y: dock.minY + (dock.height - bubbleH) * 0.5,
+            width: bubbleW,
+            height: bubbleH
+        )
+
+        let prefs = GlassPreferences.shared
+        let bubble: UIView
+        if let existing = bar.viewWithTag(GlassBubbleKit.selectedTag) {
+            bubble = existing
+            if index != lastSelectedIndex {
+                GlassBubbleKit.springMove(bubble, to: target)
+            } else {
+                bubble.frame = target
+            }
+        } else {
+            // Soft glass lens (UIView + blur child on content path without nesting issues)
+            let holder = UIView(frame: target)
+            holder.tag = GlassBubbleKit.selectedTag
+            holder.isUserInteractionEnabled = false
+            holder.layer.cornerRadius = bubbleH * 0.42
+            if #available(iOS 13.0, *) { holder.layer.cornerCurve = .continuous }
+            holder.clipsToBounds = true
+            holder.backgroundColor = UIColor.white.withAlphaComponent(0.18 * prefs.intensity)
+            holder.layer.borderWidth = 0.4
+            holder.layer.borderColor = UIColor.white.withAlphaComponent(0.28).cgColor
+            bar.insertSubview(holder, at: 1)
+            bubble = holder
+        }
+        lastSelectedIndex = index
+        bubble.alpha = max(0.55, prefs.intensity)
     }
 }

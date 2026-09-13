@@ -134,8 +134,8 @@ import UIKit
 
 private class GlassSettingsViewController: UIViewController {
     deinit {
-        GlassMutationGate.resume()
         DispatchQueue.main.async { GlassOverlayPresenter.shared.dismissOverlay() }
+    }
     }
 
     private let prefs = GlassPreferences.shared
@@ -627,8 +627,8 @@ private class GlassSettingsViewController: UIViewController {
     }
 
     @objc private func close() {
-        GlassMutationGate.resume()
-        GlassOverlayPresenter.shared.dismissOverlay()
-        dismiss(animated: true)
+        dismiss(animated: true) {
+            GlassOverlayPresenter.shared.dismissOverlay()
+        }
     }
 }
