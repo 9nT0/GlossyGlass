@@ -7,7 +7,7 @@
 <p align="center"><b>Liquid glass engine for modern iOS</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-4.0.1-blueviolet?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/version-4.0.0-blueviolet?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/API-v40-purple?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/iOS-17%20—%2018.x-black?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Live%20Container-ready-green?style=for-the-badge"/>
