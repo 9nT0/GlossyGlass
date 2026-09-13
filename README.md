@@ -1,4 +1,4 @@
-
+## V4 is currently being worked on theres alot of bugs being fixed, Dylib loader is no longer needed all issues fixed.
 <p align="center">
   <img src="Cover.jpg" alt="GlossyGlass" width="100%"/>
 </p>
