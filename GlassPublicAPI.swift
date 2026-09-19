@@ -5,7 +5,7 @@ import UIKit
 
     @objc public static let shared = GlossyGlassAPI()
     @objc public static let apiVersion: Int = 40
-    @objc public static let apiVersionString: String = "4.0.2"
+    @objc public static let apiVersionString: String = "4.0.0"
 
     // MARK: - Core enable
 
@@ -195,7 +195,7 @@ import UIKit
     @objc public func applyLiquidHeavyLook() { GlassThemeEngine.shared.applyLiquidHeavy() }
     
 
-    // MARK: - v4.0.2 Expanded API
+    // MARK: - v4.0.0 Expanded API
 
     @objc public func privateCapabilityReport() -> String {
         GlassPrivateBridge.capabilityReport()

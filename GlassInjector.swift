@@ -41,11 +41,11 @@ import UIKit
 
             let delays: [TimeInterval]
             if GlassAppSupport.shared.isContainerEnvironment {
-                delays = [0.5, 1.5, 4.0, 10.0]  // quiet bootstrap only — chrome is Coordinator
+                delays = [1.0, 3.0, 8.0]  // sparse — chrome is Coordinator
             } else if GlassAppSupport.shared.isInstagram {
-                delays = [0.2, 0.5, 1.0, 2.0, 3.5, 5.0, 8.0, 12.0, 18.0]
+                delays = [0.5, 1.5, 3.0, 6.0, 12.0]
             } else {
-                delays = [0.5, 1.5, 3.0, 6.0, 12.0, 20.0]
+                delays = [1.0, 3.0, 8.0]
             }
 
             for d in delays {
@@ -57,6 +57,15 @@ import UIKit
             attemptInjection()
             installMessagesLongPress()
             GlassUICoordinator.shared.apply(reason: "injector")
+            
+            // Guarantee a visible settings entry after short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                if Self.attachedButton == nil && Self.floatingButton == nil {
+                    Self.ensureFloatingFallback()
+                    NSLog("[GlossyGlass] Injector: forced floating settings button")
+                }
+                GlassUICoordinator.shared.apply(reason: "injector-late")
+            }
             GlassPreferences.shared.log("Injector start host=\(GlassAppSupport.shared.bundleId)")
         }
     }

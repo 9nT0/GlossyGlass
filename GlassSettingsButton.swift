@@ -457,7 +457,7 @@ private class GlassSettingsViewController: UIViewController {
         changeBtn.setTitle("Changelog", for: .normal)
         changeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         changeBtn.addAction(UIAction { [weak self] _ in
-            let alert = UIAlertController(title: "GlossyGlass 4.0.2", message: """
+            let alert = UIAlertController(title: "GlossyGlass 4.0.0", message: """
 • Messages 1s hold → settings
 • Force Show Glass button
 • Floating fallback if injection drops
@@ -484,7 +484,7 @@ private class GlassSettingsViewController: UIViewController {
         stack.addArrangedSubview(redetectBtn)
 
         let footer = UILabel()
-        footer.text = "Hold Messages 1s to open settings\nGlossyGlass · Killswitch · v4.0.2"
+        footer.text = "Hold Messages 1s to open settings\nGlossyGlass · Killswitch · v4.0.0"
         footer.font = .systemFont(ofSize: 11, weight: .medium)
         footer.numberOfLines = 2
         footer.textColor = .tertiaryLabel

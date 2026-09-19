@@ -18,7 +18,7 @@ import UIKit
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     }
 
-    @objc public var glassVersion: String { "4.0.2" }
+    @objc public var glassVersion: String { "4.0.0" }
 
     @objc public var iosVersion: String { UIDevice.current.systemVersion }
     @objc public var deviceModel: String { UIDevice.current.model }
@@ -42,7 +42,7 @@ import UIKit
         let p = GlassPreferences.shared
         let s = GlassAppSupport.shared
         return """
-        GlossyGlass Diagnostics v4.0.2
+        GlossyGlass Diagnostics v4.0.0
         Private: \(GlassPrivateBridge.hasUIGlassEffect ? "UIGlass" : "no-UIGlass")
         ----------------------------
         Glass: \(glassVersion)

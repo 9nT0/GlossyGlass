@@ -328,10 +328,17 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
             self.window = win
             self.presented = controller
 
-            // Do NOT call makeKeyAndVisible on every present — steals focus from IG and crashes LC
-            win.makeKeyAndVisible()
+            // Prefer isHidden=false without stealing key from IG (LC crash source).
+            // Only makeKey if nothing else is key.
+            win.isHidden = false
+            let hasOtherKey = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .contains { $0.isKeyWindow && $0 !== win }
+            if !hasOtherKey {
+                win.makeKeyAndVisible()
+            }
 
-            // Present after runloop tick so root is in hierarchy
             DispatchQueue.main.async {
                 guard self.window === win, win.rootViewController === root else { return }
                 if root.presentedViewController != nil {

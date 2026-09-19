@@ -1,6 +1,6 @@
 import UIKit
 
-/// Single chrome owner. All glass presentation routes through here.
+/// Single chrome owner — debounced, sparse retries, no thrash.
 @objc public final class GlassUICoordinator: NSObject {
 
     @objc public static let shared = GlassUICoordinator()
@@ -8,27 +8,29 @@ import UIKit
     private var started = false
     private var lastApply: TimeInterval = 0
     private var observers: [NSObjectProtocol] = []
+    private var pendingWorkItem: DispatchWorkItem?
 
     private override init() { super.init() }
 
     @objc public func start() {
         DispatchQueue.main.async {
             guard !self.started else {
-                self.apply(reason: "start-reentry")
+                self.scheduleApply(reason: "start-reentry", delay: 0.15)
                 return
             }
             self.started = true
+            _ = GlassPreferences.shared
             GlassChromeShield.shared.armEarly()
             GlassContextChrome.shared.start()
             self.installObservers()
             self.apply(reason: "start")
-            // Extra delayed attaches — IG tab bar often appears late
-            for d in [0.4, 1.2, 3.0, 7.0] as [TimeInterval] {
+            // Sparse, non-overlapping retries
+            for d in [0.6, 2.0, 5.0, 12.0] as [TimeInterval] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + d) {
                     self.apply(reason: "delayed-\(d)")
                 }
             }
-            NSLog("[GlossyGlass] UICoordinator started")
+            NSLog("[GlossyGlass] UICoordinator started v4.0.0")
         }
     }
 
@@ -42,33 +44,38 @@ import UIKit
             let o = NotificationCenter.default.addObserver(
                 forName: name, object: nil, queue: .main
             ) { [weak self] _ in
-                self?.apply(reason: name.rawValue)
+                self?.scheduleApply(reason: name.rawValue, delay: 0.2)
             }
             observers.append(o)
         }
         let pref = NotificationCenter.default.addObserver(
             forName: .glassPreferencesDidChange, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.apply(reason: "prefs")
+            self?.scheduleApply(reason: "prefs", delay: 0.1)
         }
         observers.append(pref)
     }
 
+    /// Coalesce rapid apply calls into one.
+    private func scheduleApply(reason: String, delay: TimeInterval) {
+        pendingWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.apply(reason: reason)
+        }
+        pendingWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
     @objc public func apply(reason: String = "apply") {
         let prefs = GlassPreferences.shared
-        guard prefs.isEnabled else {
-            NSLog("[GlossyGlass] Coordinator apply skipped — disabled")
-            return
-        }
+        guard prefs.isEnabled else { return }
         if prefs.safeMode {
             teardown()
             return
         }
 
         let now = CFAbsoluteTimeGetCurrent()
-        // Allow faster re-apply on start/delayed
-        let minGap: TimeInterval = reason.hasPrefix("delayed") || reason == "start" ? 0.05 : 0.18
-        if now - lastApply < minGap { return }
+        if now - lastApply < 0.12 { return }
         lastApply = now
 
         GlassSurfaceRouter.shared.refresh()
@@ -76,7 +83,6 @@ import UIKit
 
         GlassChromeShield.shared.armEarly()
 
-        // Always try dock + nav when prefs allow
         if prefs.styleTabBar {
             GlassDock.shared.attachIfNeeded()
         }
@@ -93,7 +99,10 @@ import UIKit
             break
         }
 
-        GlassContextChrome.shared.scan()
+        // Context scan less often — every other apply
+        if reason == "start" || reason.hasPrefix("delayed") || reason == "prefs" {
+            GlassContextChrome.shared.scan()
+        }
 
         GlassDiagnostics.shared.recordChrome(
             surfaces: 1,
@@ -105,7 +114,6 @@ import UIKit
             ],
             note: "ui:\(reason) surface:\(surface.key)"
         )
-        NSLog("[GlossyGlass] Coordinator apply reason=%@ surface=%@", reason, surface.key)
     }
 
     @objc public func paintIfChrome(_ view: UIView) {
@@ -128,6 +136,7 @@ import UIKit
     @objc public func teardown() {
         for w in GlassAppSupport.allWindows() {
             GlassOverlayRegistry.shared.clearAll(in: w)
+            w.viewWithTag(0x4747_5748)?.removeFromSuperview()
         }
     }
 }
