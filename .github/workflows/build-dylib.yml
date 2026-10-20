@@ -24,43 +24,93 @@ jobs:
           TARGET="arm64-apple-ios16.0"
           OUT="GlossyGlass.dylib"
 
-          mapfile -t SWIFT_FILES < <(find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort)
-          mapfile -t OBJC_FILES < <(find Loader -name "*.m" 2>/dev/null | sort)
+          # Portable — no mapfile
+          SWIFT_FILES=$(find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort | tr '\n' ' ')
+          OBJC_FILES=$(find Loader -name "*.m" 2>/dev/null | sort | tr '\n' ' ')
 
-          echo "Swift (${#SWIFT_FILES[@]}):"
-          printf '  %s\n' "${SWIFT_FILES[@]}"
-          echo "ObjC (${#OBJC_FILES[@]}):"
-          printf '  %s\n' "${OBJC_FILES[@]}"
+          echo "SDK = $SDK"
+          echo "swiftc = $SWIFT"
+          echo "Swift files:"
+          find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort || true
+          echo "ObjC files:"
+          find Loader -name "*.m" 2>/dev/null | sort || true
 
-          [ ${#SWIFT_FILES[@]} -gt 0 ] || { echo "No Swift sources"; find . -type f | head -40; exit 1; }
+          if [ -z "$(find Loader Core UI Instagram Public -name '*.swift' 2>/dev/null | head -1)" ]; then
+            echo "ERROR: no Swift sources found"
+            find . -type f | head -80
+            exit 1
+          fi
 
           SWIFT_LIB="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
-          [ -d "$SWIFT_LIB" ] || SWIFT_LIB=$(dirname $(xcrun -f swift))/../lib/swift/iphoneos
+          if [ ! -d "$SWIFT_LIB" ]; then
+            SWIFT_LIB="$(dirname "$(xcrun -f swift)")/../lib/swift/iphoneos"
+          fi
+          echo "Swift lib = $SWIFT_LIB"
 
           mkdir -p build
 
-          $SWIFT -sdk "$SDK" -target "$TARGET" -module-name GlossyGlass -parse-as-library -O -c \
-            "${SWIFT_FILES[@]}" -o build/GlassSwift.o
+          # shellcheck disable=SC2086
+          $SWIFT \
+            -sdk "$SDK" \
+            -target "$TARGET" \
+            -module-name GlossyGlass \
+            -parse-as-library \
+            -O \
+            -c \
+            $SWIFT_FILES \
+            -o build/GlassSwift.o
 
-          if [ ${#OBJC_FILES[@]} -gt 0 ]; then
-            xcrun -sdk iphoneos clang -c -target "$TARGET" -isysroot "$SDK" -fobjc-arc -O2 \
-              "${OBJC_FILES[@]}" -o build/GlassObjC.o
+          if [ -n "$OBJC_FILES" ]; then
+            # shellcheck disable=SC2086
+            xcrun -sdk iphoneos clang \
+              -c \
+              -target "$TARGET" \
+              -isysroot "$SDK" \
+              -fobjc-arc \
+              -O2 \
+              $OBJC_FILES \
+              -o build/GlassObjC.o
           fi
 
-          OBJS=(build/GlassSwift.o)
-          [ -f build/GlassObjC.o ] && OBJS+=(build/GlassObjC.o)
+          OBJS="build/GlassSwift.o"
+          if [ -f build/GlassObjC.o ]; then
+            OBJS="$OBJS build/GlassObjC.o"
+          fi
 
-          xcrun -sdk iphoneos clang -target "$TARGET" -isysroot "$SDK" -dynamiclib -o "$OUT" \
-            "${OBJS[@]}" \
-            -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore \
-            -lswiftCore -lswiftFoundation -lswiftUIKit \
-            -L"$SWIFT_LIB" -rpath /usr/lib/swift \
-            -install_name "@rpath/GlossyGlass.dylib" || \
-          xcrun -sdk iphoneos clang -target "$TARGET" -isysroot "$SDK" -dynamiclib -o "$OUT" \
-            "${OBJS[@]}" \
-            -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore \
-            -L"$SWIFT_LIB" -install_name "@rpath/GlossyGlass.dylib"
+          # shellcheck disable=SC2086
+          if ! xcrun -sdk iphoneos clang \
+            -target "$TARGET" \
+            -isysroot "$SDK" \
+            -dynamiclib \
+            -o "$OUT" \
+            $OBJS \
+            -framework UIKit \
+            -framework Foundation \
+            -framework CoreGraphics \
+            -framework QuartzCore \
+            -lswiftCore \
+            -lswiftFoundation \
+            -lswiftUIKit \
+            -L"$SWIFT_LIB" \
+            -rpath /usr/lib/swift \
+            -install_name "@rpath/GlossyGlass.dylib"; then
+            echo "Primary link failed — retry"
+            # shellcheck disable=SC2086
+            xcrun -sdk iphoneos clang \
+              -target "$TARGET" \
+              -isysroot "$SDK" \
+              -dynamiclib \
+              -o "$OUT" \
+              $OBJS \
+              -framework UIKit \
+              -framework Foundation \
+              -framework CoreGraphics \
+              -framework QuartzCore \
+              -L"$SWIFT_LIB" \
+              -install_name "@rpath/GlossyGlass.dylib"
+          fi
 
+          echo "=== Result ==="
           ls -la "$OUT"
           file "$OUT"
           lipo -info "$OUT" || true
