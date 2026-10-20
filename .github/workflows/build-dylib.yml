@@ -20,23 +20,22 @@ jobs:
           set -euo pipefail
           echo "Xcode = $(xcodebuild -version | head -1)"
 
-          # Collect sources relative to repo root
           SWIFT_LIST=$(find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort)
           OBJC_LIST=$(find Loader -name "*.m" 2>/dev/null | sort)
-          echo "Sources:"
+
+          echo "Swift sources:"
           echo "$SWIFT_LIST"
+          echo "ObjC sources:"
           echo "$OBJC_LIST"
 
           if [ -z "$SWIFT_LIST" ]; then
             echo "ERROR: no Swift files under Loader/Core/UI/Instagram/Public"
-            find . -type f | head -60
+            find . -type f | head -80
             exit 1
           fi
 
-          # --- Generate minimal Xcode project (same approach as working v4 builds) ---
           mkdir -p GlossyGlass.xcodeproj
 
-          # Build file ID lists
           PBX_BUILD=""
           PBX_REF=""
           PBX_SRC=""
@@ -59,6 +58,12 @@ jobs:
             IDX=$((IDX+1))
           done
 
+          REF_CHILDREN=""
+          for i in $(seq 1 $((IDX-1))); do
+            REF_CHILDREN="${REF_CHILDREN}
+          R$(printf '%03d' $i),"
+          done
+
           cat > GlossyGlass.xcodeproj/project.pbxproj << EOF
 // !\$*UTF8*\$!
 {
@@ -77,7 +82,7 @@ ${PBX_REF}
       G1 = {
         isa = PBXGroup;
         children = (
-$(for i in $(seq 1 $((IDX-1))); do printf "          R%03d,\n" $i; done)
+${REF_CHILDREN}
           BP,
         );
         sourceTree = "<group>";
@@ -221,7 +226,7 @@ EOF
           DYLIB=$(find build -name "GlossyGlass.dylib" | head -1)
           if [ -z "$DYLIB" ]; then
             echo "ERROR: dylib not found"
-            find build -type f | head -40
+            find build -type f | head -50
             exit 1
           fi
           cp "$DYLIB" GlossyGlass.dylib
