@@ -229,7 +229,7 @@ import UIKit
         }
         if let loc = GlassLocator.shared.findBestButtonHost() {
             candidates += 1
-            if best == nil || loc.score > best!.score {
+            if best == nil || loc.score > (best?.score ?? -1) {
                 best = (loc.view, loc.score, "Locator")
             }
         }
@@ -318,7 +318,7 @@ import UIKit
             }
             if s >= 20 {
                 count += 1
-                if best == nil || s > best!.score { best = (stack, s, "Stack") }
+                if best == nil || s > (best?.score ?? -1) { best = (stack, s, "Stack") }
             }
         }
 
@@ -328,7 +328,7 @@ import UIKit
             if igBoost { s += 8 }
             if s >= 24 {
                 count += 1
-                if best == nil || s > best!.score {
+                if best == nil || s > (best?.score ?? -1) {
                     if let stack = view as? UIStackView {
                         best = (stack, s, "Row-Stack")
                     } else if let stack = view.subviews.compactMap({ $0 as? UIStackView }).first(where: { $0.axis == .horizontal }) {
@@ -347,7 +347,7 @@ import UIKit
             if let stack = firstHorizontalStack(in: view) {
                 let s = scoreStack(stack, container: view) + (igBoost ? 35 : 20)
                 count += 1
-                if best == nil || s > best!.score {
+                if best == nil || s > (best?.score ?? -1) {
                     best = (stack, s, "Hint-\(name)")
                 }
             }
