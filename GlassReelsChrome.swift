@@ -8,6 +8,7 @@ import UIKit
     private let sideTagBase = 0x4747_5253 // GGRS
 
     @objc public func apply() {
+        GlassOverlayRegistry.shared.sweepContentOverlays()
         let prefs = GlassPreferences.shared
         guard prefs.isEnabled, !prefs.safeMode else { return }
         guard GlassSurfaceRouter.shared.activeSurface == .reels else { return }

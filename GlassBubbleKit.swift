@@ -1,7 +1,6 @@
 import UIKit
 
-/// Shared liquid-glass capsules for dock, nav bubbles, selected lens.
-/// Prefers UIGlassEffect (iOS 26) when private bridge reports it.
+/// Advanced liquid-glass capsules — UIGlassEffect on 26+, layered fallback below.
 @objc public final class GlassBubbleKit: NSObject {
 
     public static let dockTag: Int         = 0x4747_444B // GGDK
@@ -12,20 +11,14 @@ import UIKit
     public static let dmChromeTag: Int     = 0x4747_444D // GGDM
     public static let presentationTag: Int = 0x4747_5052 // GGPR
 
-    // MARK: - Blur / glass effect
+    // MARK: - Effect
 
     @objc public static func makeBlur(style: String, intensity: CGFloat) -> UIVisualEffect {
-        // Prefer real UIGlassEffect when available (iOS 26+)
-        if GlassPrivateBridge.hasUIGlassEffect {
-            let clear = style.lowercased() == "clear" || intensity < 0.45
-            if let g = GlassPrivateBridge.makeGlassEffect(clear: clear) {
-                return g
-            }
-        }
-        return GlassMaterialEngine.shared.blurEffect(style: style, dark: true, intensity: intensity)
+        let clear = style.lowercased() == "clear" || intensity < 0.45
+        return GlassNativeBridge.makePreferredGlass(clear: clear, intensity: intensity)
     }
 
-    // MARK: - Install bubble (create-or-update by tag)
+    // MARK: - Bubble (create-or-update)
 
     @discardableResult
     @objc public static func installBubble(
@@ -40,7 +33,7 @@ import UIKit
         let bubble: UIVisualEffectView
         if let existing = host.viewWithTag(tag) as? UIVisualEffectView {
             bubble = existing
-            bubble.effect = effect
+            if bubble.effect !== effect { bubble.effect = effect }
         } else {
             bubble = UIVisualEffectView(effect: effect)
             bubble.tag = tag
@@ -49,25 +42,22 @@ import UIKit
             host.insertSubview(bubble, at: 0)
         }
 
-        if bubble.layer.animationKeys()?.isEmpty ?? true {
-            bubble.frame = frame
-        } else {
-            // Still update if not mid-animation keys for bounds
+        let moved = abs(bubble.frame.midX - frame.midX) > 0.5
+            || abs(bubble.frame.midY - frame.midY) > 0.5
+            || abs(bubble.frame.width - frame.width) > 0.5
+        if moved {
             bubble.frame = frame
         }
 
-        // iOS 26 continuous capsule
-        let r = min(frame.height, frame.width) * 0.48
-        bubble.layer.cornerRadius = max(12, r)
-        if #available(iOS 13.0, *) { bubble.layer.cornerCurve = .continuous }
-        bubble.alpha = max(0.90, min(1, opacity))
+        GlassNativeBridge.applyCapsuleShape(to: bubble, height: frame.height)
+        decorate(bubble, intensity: intensity, opacity: opacity, style: style)
+        bubble.alpha = max(0.75, min(1.0, opacity))
         bubble.isHidden = false
-
-        applyInnerLayers(to: bubble, style: style, intensity: intensity, selected: tag == selectedTag)
         return bubble
     }
 
-    /// Soft selected-tab lens — morphs like a water droplet across the dock
+    // MARK: - Selected lens (morphing water drop)
+
     @discardableResult
     @objc public static func installSelectedLens(
         into host: UIView,
@@ -75,93 +65,87 @@ import UIKit
         intensity: CGFloat
     ) -> UIView {
         let tag = selectedTag
-        let lens: UIView
-        if let existing = host.viewWithTag(tag) {
+        let effect = makeBlur(style: "clear", intensity: max(0.7, intensity))
+        let lens: UIVisualEffectView
+        if let existing = host.viewWithTag(tag) as? UIVisualEffectView {
             lens = existing
+            lens.effect = effect
         } else {
-            lens = UIView(frame: frame)
+            lens = UIVisualEffectView(effect: effect)
             lens.tag = tag
             lens.isUserInteractionEnabled = false
             lens.clipsToBounds = true
             host.insertSubview(lens, at: 1)
         }
 
-        lens.layer.cornerRadius = min(frame.height, frame.width) * 0.45
-        if #available(iOS 13.0, *) { lens.layer.cornerCurve = .continuous }
+        GlassNativeBridge.applyCapsuleShape(to: lens, height: frame.height)
+        decorate(lens, intensity: intensity, opacity: 0.96, style: "clear")
 
-        // Brighter glass pill over selected item
-        lens.backgroundColor = UIColor.white.withAlphaComponent(0.22 * max(0.55, intensity))
-        lens.layer.borderWidth = 0.6
-        lens.layer.borderColor = UIColor.white.withAlphaComponent(0.40 * intensity).cgColor
+        // Soft specular rim
+        lens.layer.borderWidth = 0.5
+        lens.layer.borderColor = UIColor.white.withAlphaComponent(0.22).cgColor
         lens.layer.shadowColor = UIColor.black.cgColor
-        lens.layer.shadowOpacity = Float(0.20 * intensity)
+        lens.layer.shadowOpacity = 0.18
         lens.layer.shadowRadius = 8
-        lens.layer.shadowOffset = CGSize(width: 0, height: 2)
-        lens.alpha = max(0.65, intensity)
-        lens.isHidden = false
+        lens.layer.shadowOffset = CGSize(width: 0, height: 3)
+        lens.layer.masksToBounds = false
+
         return lens
     }
 
-    // MARK: - Inner specular / tint (liquid look)
+    // MARK: - Decoration
 
-    private static func applyInnerLayers(
-        to bubble: UIVisualEffectView,
-        style: String,
+    private static func decorate(
+        _ bubble: UIVisualEffectView,
         intensity: CGFloat,
-        selected: Bool
+        opacity: CGFloat,
+        style: String
     ) {
         let cv = bubble.contentView
-        let tintTag = bubble.tag &+ 1
-        let rimTag  = bubble.tag &+ 2
-        let glowTag = bubble.tag &+ 3
+        // Tint plate
+        let tintTag = 0x4747_544E // GGTN
+        var tint = cv.viewWithTag(tintTag)
+        if tint == nil {
+            let v = UIView()
+            v.tag = tintTag
+            v.isUserInteractionEnabled = false
+            cv.insertSubview(v, at: 0)
+            tint = v
+        }
+        tint?.frame = cv.bounds
+        tint?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let clear = style.lowercased() == "clear"
+        let base: CGFloat = clear ? 0.08 : 0.14
+        tint?.backgroundColor = UIColor.white.withAlphaComponent(base * max(0.5, intensity))
 
-        // Soft frost tint
-        let tint: UIView
-        if let t = cv.viewWithTag(tintTag) { tint = t }
-        else {
-            tint = UIView()
-            tint.tag = tintTag
-            tint.isUserInteractionEnabled = false
-            cv.insertSubview(tint, at: 0)
+        // Specular top edge
+        let glowTag = 0x4747_474C // GGGL
+        var glow = cv.viewWithTag(glowTag)
+        if glow == nil {
+            let g = UIView()
+            g.tag = glowTag
+            g.isUserInteractionEnabled = false
+            cv.insertSubview(g, at: 1)
+            glow = g
         }
-        tint.frame = cv.bounds
-        tint.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        let frost: CGFloat
-        switch style.lowercased() {
-        case "clear": frost = 0.06
-        case "tinted": frost = 0.20
-        case "liquid", "heavy": frost = 0.16
-        default: frost = 0.12
-        }
-        tint.backgroundColor = UIColor.white.withAlphaComponent(frost * max(0.5, intensity) * (selected ? 1.3 : 1))
+        let h = max(6, bubble.bounds.height * 0.22)
+        glow?.frame = CGRect(x: 4, y: 1, width: max(0, bubble.bounds.width - 8), height: h)
+        glow?.autoresizingMask = [.flexibleWidth]
+        glow?.backgroundColor = UIColor.white.withAlphaComponent(0.12 * intensity)
+        glow?.layer.cornerRadius = h * 0.5
+        if #available(iOS 13.0, *) { glow?.layer.cornerCurve = .continuous }
 
-        // Specular top rim (glass highlight)
-        let rim: UIView
-        if let r = cv.viewWithTag(rimTag) { rim = r }
-        else {
-            rim = UIView()
-            rim.tag = rimTag
-            rim.isUserInteractionEnabled = false
-            cv.addSubview(rim)
-        }
-        rim.frame = CGRect(x: 8, y: 0.5, width: max(0, bubble.bounds.width - 16), height: 0.7)
-        rim.autoresizingMask = [.flexibleWidth]
-        rim.backgroundColor = UIColor.white.withAlphaComponent(0.42 * intensity)
-        rim.layer.cornerRadius = 0.35
+        // Outer soft shadow on host layer
+        bubble.layer.shadowColor = UIColor.black.cgColor
+        bubble.layer.shadowOpacity = Float(0.22 * max(0.4, intensity))
+        bubble.layer.shadowRadius = 12
+        bubble.layer.shadowOffset = CGSize(width: 0, height: 4)
+        bubble.layer.masksToBounds = false
+        bubble.layer.borderWidth = 0.35
+        bubble.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+    }
 
-        if selected {
-            let glow: UIView
-            if let g = cv.viewWithTag(glowTag) { glow = g }
-            else {
-                glow = UIView()
-                glow.tag = glowTag
-                glow.isUserInteractionEnabled = false
-                cv.insertSubview(glow, at: 1)
-            }
-            glow.frame = cv.bounds.insetBy(dx: 4, dy: 4)
-            glow.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            glow.backgroundColor = UIColor.white.withAlphaComponent(0.08 * intensity)
-            glow.layer.cornerRadius = min(glow.bounds.height, glow.bounds.width) * 0.4
-        }
+    @objc public static func removeBubble(tag: Int, from host: UIView) {
+        host.viewWithTag(tag)?.removeFromSuperview()
     }
 }

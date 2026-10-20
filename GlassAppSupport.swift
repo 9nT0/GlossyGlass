@@ -300,7 +300,15 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
 
     @objc public func present(_ controller: UIViewController, animated: Bool) {
         DispatchQueue.main.async {
-            // Already showing something — replace cleanly
+            // Prefer host VC — overlay window is last resort (LC crash vector)
+            if let top = GlassAppSupport.topViewController(), top.view.window != nil {
+                var leaf = top
+                while let p = leaf.presentedViewController { leaf = p }
+                leaf.present(controller, animated: animated)
+                self.isPresenting = false
+                return
+            }
+
             if self.isPresenting {
                 self.dismissOverlay()
             }
@@ -317,10 +325,8 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
             } else {
                 win = UIWindow(frame: UIScreen.main.bounds)
             }
-            // Below alert system dialogs, above app content — not +10 forever-key
             win.windowLevel = .alert
             win.backgroundColor = .clear
-            win.isHidden = false
 
             let root = UIViewController()
             root.view.backgroundColor = .clear
@@ -328,26 +334,12 @@ private func _gg_dyld_get_image_name(_ image_index: UInt32) -> UnsafePointer<CCh
             self.window = win
             self.presented = controller
 
-            // Prefer isHidden=false without stealing key from IG (LC crash source).
-            // Only makeKey if nothing else is key.
-            win.isHidden = false
-            let hasOtherKey = UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap { $0.windows }
-                .contains { $0.isKeyWindow && $0 !== win }
-            if !hasOtherKey {
-                win.makeKeyAndVisible()
-            }
+            // Always need a key window for present — but restore IG key on dismiss
+            win.makeKeyAndVisible()
 
             DispatchQueue.main.async {
                 guard self.window === win, win.rootViewController === root else { return }
-                if root.presentedViewController != nil {
-                    root.dismiss(animated: false) {
-                        root.present(controller, animated: animated, completion: nil)
-                    }
-                } else {
-                    root.present(controller, animated: animated, completion: nil)
-                }
+                root.present(controller, animated: animated, completion: nil)
             }
         }
     }

@@ -1,6 +1,6 @@
 import UIKit
 
-/// Single chrome owner — debounced, sparse retries, no thrash.
+/// Single chrome owner — dock + nav capsules only. Content never receives glass.
 @objc public final class GlassUICoordinator: NSObject {
 
     @objc public static let shared = GlassUICoordinator()
@@ -22,10 +22,10 @@ import UIKit
             _ = GlassPreferences.shared
             GlassChromeShield.shared.armEarly()
             GlassContextChrome.shared.start()
+            GlassInstantsChrome.shared.start()
             self.installObservers()
             self.apply(reason: "start")
-            // Sparse, non-overlapping retries
-            for d in [0.6, 2.0, 5.0, 12.0] as [TimeInterval] {
+            for d in [0.7, 2.2, 6.0, 14.0] as [TimeInterval] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + d) {
                     self.apply(reason: "delayed-\(d)")
                 }
@@ -44,19 +44,18 @@ import UIKit
             let o = NotificationCenter.default.addObserver(
                 forName: name, object: nil, queue: .main
             ) { [weak self] _ in
-                self?.scheduleApply(reason: name.rawValue, delay: 0.2)
+                self?.scheduleApply(reason: name.rawValue, delay: 0.25)
             }
             observers.append(o)
         }
         let pref = NotificationCenter.default.addObserver(
             forName: .glassPreferencesDidChange, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.scheduleApply(reason: "prefs", delay: 0.1)
+            self?.scheduleApply(reason: "prefs", delay: 0.12)
         }
         observers.append(pref)
     }
 
-    /// Coalesce rapid apply calls into one.
     private func scheduleApply(reason: String, delay: TimeInterval) {
         pendingWorkItem?.cancel()
         let item = DispatchWorkItem { [weak self] in
@@ -75,8 +74,11 @@ import UIKit
         }
 
         let now = CFAbsoluteTimeGetCurrent()
-        if now - lastApply < 0.12 { return }
+        if now - lastApply < 0.14 { return }
         lastApply = now
+
+        // Always kill content overlays first
+        GlassOverlayRegistry.shared.sweepContentOverlays()
 
         GlassSurfaceRouter.shared.refresh()
         let surface = GlassSurfaceRouter.shared.activeSurface
@@ -97,11 +99,6 @@ import UIKit
             GlassReelsChrome.shared.apply()
         default:
             break
-        }
-
-        // Context scan less often — every other apply
-        if reason == "start" || reason.hasPrefix("delayed") || reason == "prefs" {
-            GlassContextChrome.shared.scan()
         }
 
         GlassDiagnostics.shared.recordChrome(

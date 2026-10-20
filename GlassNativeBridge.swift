@@ -1,35 +1,30 @@
 import UIKit
 
-/// Uses real UIGlassEffect on iOS 26+ when the class exists at runtime.
-@objc public class GlassNativeBridge: NSObject {
+/// High-level glass capability helpers on top of GlassPrivateBridge.
+@objc public final class GlassNativeBridge: NSObject {
 
-    @objc public static var isNativeGlassAvailable: Bool {
-        NSClassFromString("UIGlassEffect") != nil
+    @objc public static var hasUIGlassEffect: Bool {
+        GlassPrivateBridge.hasUIGlassEffect
     }
 
-    @objc public static func makeNativeGlassView(styleClear: Bool) -> UIVisualEffectView? {
-        guard let glassClass = NSClassFromString("UIGlassEffect") as? NSObject.Type else {
-            return nil
+    @objc public static func makePreferredGlass(clear: Bool, intensity: CGFloat) -> UIVisualEffect {
+        if hasUIGlassEffect, let g = GlassPrivateBridge.makeGlassEffect(clear: clear || intensity < 0.42) {
+            return g
         }
-        // UIGlassEffect inherits UIVisualEffect — allocate via ObjC runtime
-        let effect: AnyObject?
-        if styleClear, glassClass.responds(to: NSSelectorFromString("clearEffect")) {
-            effect = glassClass.perform(NSSelectorFromString("clearEffect"))?.takeUnretainedValue()
-        } else if glassClass.responds(to: NSSelectorFromString("effectWithStyle:")) {
-            // Some betas use style enum — fall through to init
-            effect = glassClass.init()
-        } else {
-            effect = glassClass.init()
-        }
-        guard let visual = effect as? UIVisualEffect else { return nil }
-        let v = UIVisualEffectView(effect: visual)
-        v.clipsToBounds = true
-        return v
+        return GlassMaterialEngine.shared.blurEffect(
+            style: clear ? "clear" : "frosted",
+            dark: true,
+            intensity: intensity
+        )
     }
 
-    @objc public static func fallbackBlur(dark: Bool, lightweight: Bool) -> UIBlurEffect {
-        if lightweight { return UIBlurEffect(style: .systemUltraThinMaterial) }
-        if dark { return UIBlurEffect(style: .systemThinMaterialDark) }
-        return UIBlurEffect(style: .systemThinMaterialLight)
+    @objc public static func applyCapsuleShape(to view: UIView, height: CGFloat) {
+        let r = height * 0.5
+        view.layer.cornerRadius = r
+        if #available(iOS 13.0, *) {
+            view.layer.cornerCurve = .continuous
+        }
+        view.clipsToBounds = true
+        GlassPrivateBridge.setContinuousCorners(view, radius: r)
     }
 }

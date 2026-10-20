@@ -24,9 +24,15 @@ import UIKit
                     queue: .main
                 ) { _ in
                     GlassAppSupport.shared.refreshDetection()
-                    injectionAttempts = max(0, injectionAttempts - 4)
+                    // Account switch / LC rebuild — allow fresh attach without waiting for 10+ fails
+                    injectionAttempts = 0
+                    if attachedButton?.superview == nil {
+                        attachedButton = nil
+                        attachedHost = nil
+                    }
                     attemptInjection()
                     installMessagesLongPress()
+                    GlassUICoordinator.shared.apply(reason: "didBecomeActive")
                 }
 
                 let interval: TimeInterval = GlassAppSupport.shared.isContainerEnvironment ? 1.5 : 2.5
