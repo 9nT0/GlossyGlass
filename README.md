@@ -63,4 +63,4 @@ Public/          API v53
 Assets/          Cover
 ```
 
-**Version 5.3.0** · **API 53**
+**Version 5.0.0** · **API 53**
