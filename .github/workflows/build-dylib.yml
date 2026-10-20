@@ -20,11 +20,9 @@ jobs:
           set -euo pipefail
           echo "Xcode = $(xcodebuild -version | head -1)"
 
-          # Flatten folder layout into root so the v4-style builder works
           find Loader Core UI Instagram Public -type f \( -name "*.swift" -o -name "*.m" -o -name "*.c" \) 2>/dev/null | while read -r f; do
             bn=$(basename "$f")
             if [ -e "$bn" ] && [ "$bn" != "$f" ]; then
-              echo "WARN: name clash for $bn — using prefixed name"
               cp "$f" "gg_${bn}"
             else
               cp "$f" "$bn"
