@@ -1,11 +1,11 @@
-# GlossyGlass v5.3
+# GlossyGlass v5.0
 
 <p align="center">
   <img src="Assets/cover.svg" alt="GlossyGlass" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.3.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-5.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/iOS-16%20–%2018.x-lightgrey" alt="iOS">
   <img src="https://img.shields.io/badge/target-Instagram-E1306C" alt="Target">
 </p>
