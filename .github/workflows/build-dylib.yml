@@ -18,102 +18,216 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcodebuild -version || true
-          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          SWIFT=$(xcrun -f swiftc)
-          TARGET="arm64-apple-ios16.0"
-          OUT="GlossyGlass.dylib"
+          echo "Xcode = $(xcodebuild -version | head -1)"
 
-          # Portable — no mapfile
-          SWIFT_FILES=$(find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort | tr '\n' ' ')
-          OBJC_FILES=$(find Loader -name "*.m" 2>/dev/null | sort | tr '\n' ' ')
+          # Collect sources relative to repo root
+          SWIFT_LIST=$(find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort)
+          OBJC_LIST=$(find Loader -name "*.m" 2>/dev/null | sort)
+          echo "Sources:"
+          echo "$SWIFT_LIST"
+          echo "$OBJC_LIST"
 
-          echo "SDK = $SDK"
-          echo "swiftc = $SWIFT"
-          echo "Swift files:"
-          find Loader Core UI Instagram Public -name "*.swift" 2>/dev/null | sort || true
-          echo "ObjC files:"
-          find Loader -name "*.m" 2>/dev/null | sort || true
-
-          if [ -z "$(find Loader Core UI Instagram Public -name '*.swift' 2>/dev/null | head -1)" ]; then
-            echo "ERROR: no Swift sources found"
-            find . -type f | head -80
+          if [ -z "$SWIFT_LIST" ]; then
+            echo "ERROR: no Swift files under Loader/Core/UI/Instagram/Public"
+            find . -type f | head -60
             exit 1
           fi
 
-          SWIFT_LIB="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
-          if [ ! -d "$SWIFT_LIB" ]; then
-            SWIFT_LIB="$(dirname "$(xcrun -f swift)")/../lib/swift/iphoneos"
+          # --- Generate minimal Xcode project (same approach as working v4 builds) ---
+          mkdir -p GlossyGlass.xcodeproj
+
+          # Build file ID lists
+          PBX_BUILD=""
+          PBX_REF=""
+          PBX_SRC=""
+          IDX=1
+          for f in $SWIFT_LIST $OBJC_LIST; do
+            BID=$(printf "B%03d" $IDX)
+            RID=$(printf "R%03d" $IDX)
+            BN=$(basename "$f")
+            if [[ "$f" == *.swift ]]; then
+              FT="sourcecode.swift"
+            else
+              FT="sourcecode.c.objc"
+            fi
+            PBX_BUILD="${PBX_BUILD}
+              ${BID} /* ${BN} in Sources */ = {isa = PBXBuildFile; fileRef = ${RID}; };"
+            PBX_REF="${PBX_REF}
+              ${RID} /* ${BN} */ = {isa = PBXFileReference; lastKnownFileType = ${FT}; name = \"${BN}\"; path = \"${f}\"; sourceTree = \"<group>\"; };"
+            PBX_SRC="${PBX_SRC}
+                  ${BID} /* ${BN} in Sources */,"
+            IDX=$((IDX+1))
+          done
+
+          cat > GlossyGlass.xcodeproj/project.pbxproj << EOF
+// !\$*UTF8*\$!
+{
+  archiveVersion = 1;
+  classes = {};
+  objectVersion = 56;
+  objects = {
+    /* Begin PBXBuildFile section */
+${PBX_BUILD}
+    /* End PBXBuildFile section */
+    /* Begin PBXFileReference section */
+${PBX_REF}
+      BP /* GlossyGlass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = GlossyGlass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+    /* End PBXFileReference section */
+    /* Begin PBXGroup section */
+      G1 = {
+        isa = PBXGroup;
+        children = (
+$(for i in $(seq 1 $((IDX-1))); do printf "          R%03d,\n" $i; done)
+          BP,
+        );
+        sourceTree = "<group>";
+      };
+    /* End PBXGroup section */
+    /* Begin PBXNativeTarget section */
+      T1 /* GlossyGlass */ = {
+        isa = PBXNativeTarget;
+        buildConfigurationList = CLT;
+        buildPhases = ( Sources, );
+        buildRules = ( );
+        dependencies = ( );
+        name = GlossyGlass;
+        productName = GlossyGlass;
+        productReference = BP;
+        productType = "com.apple.product-type.library.dynamic";
+      };
+    /* End PBXNativeTarget section */
+    /* Begin PBXProject section */
+      PRJ /* Project object */ = {
+        isa = PBXProject;
+        attributes = { LastUpgradeCheck = 1500; };
+        buildConfigurationList = CLP;
+        compatibilityVersion = "Xcode 14.0";
+        developmentRegion = en;
+        hasScannedForEncodings = 0;
+        knownRegions = ( en, Base, );
+        mainGroup = G1;
+        productRefGroup = G1;
+        projectDirPath = "";
+        projectRoot = "";
+        targets = ( T1, );
+      };
+    /* End PBXProject section */
+    /* Begin PBXSourcesBuildPhase section */
+      Sources /* Sources */ = {
+        isa = PBXSourcesBuildPhase;
+        buildActionMask = 2147483647;
+        files = (
+${PBX_SRC}
+        );
+        runOnlyForDeploymentPostprocessing = 0;
+      };
+    /* End PBXSourcesBuildPhase section */
+    /* Begin XCBuildConfiguration section */
+      DBG = {
+        isa = XCBuildConfiguration;
+        buildSettings = {
+          ALWAYS_SEARCH_USER_PATHS = NO;
+          CLANG_ENABLE_MODULES = YES;
+          CLANG_ENABLE_OBJC_ARC = YES;
+          IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+          ONLY_ACTIVE_ARCH = YES;
+          SDKROOT = iphoneos;
+          SWIFT_VERSION = 5.0;
+        };
+        name = Debug;
+      };
+      REL = {
+        isa = XCBuildConfiguration;
+        buildSettings = {
+          ALWAYS_SEARCH_USER_PATHS = NO;
+          CLANG_ENABLE_MODULES = YES;
+          CLANG_ENABLE_OBJC_ARC = YES;
+          IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+          SDKROOT = iphoneos;
+          SWIFT_COMPILATION_MODE = wholemodule;
+          SWIFT_OPTIMIZATION_LEVEL = "-O";
+          SWIFT_VERSION = 5.0;
+          VALIDATE_PRODUCT = YES;
+        };
+        name = Release;
+      };
+      TD = {
+        isa = XCBuildConfiguration;
+        buildSettings = {
+          CODE_SIGNING_ALLOWED = NO;
+          CODE_SIGN_IDENTITY = "";
+          DYLIB_COMPATIBILITY_VERSION = 1;
+          DYLIB_CURRENT_VERSION = 1;
+          DYLIB_INSTALL_NAME_BASE = "@rpath";
+          EXECUTABLE_PREFIX = "";
+          IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+          OTHER_LDFLAGS = ( "-framework", UIKit, "-framework", Foundation, "-framework", QuartzCore, );
+          PRODUCT_NAME = GlossyGlass;
+          SKIP_INSTALL = YES;
+          SWIFT_VERSION = 5.0;
+          TARGETED_DEVICE_FAMILY = "1,2";
+        };
+        name = Debug;
+      };
+      TR = {
+        isa = XCBuildConfiguration;
+        buildSettings = {
+          CODE_SIGNING_ALLOWED = NO;
+          CODE_SIGN_IDENTITY = "";
+          DYLIB_COMPATIBILITY_VERSION = 1;
+          DYLIB_CURRENT_VERSION = 1;
+          DYLIB_INSTALL_NAME_BASE = "@rpath";
+          EXECUTABLE_PREFIX = "";
+          IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+          OTHER_LDFLAGS = ( "-framework", UIKit, "-framework", Foundation, "-framework", QuartzCore, );
+          PRODUCT_NAME = GlossyGlass;
+          SKIP_INSTALL = YES;
+          SWIFT_VERSION = 5.0;
+          TARGETED_DEVICE_FAMILY = "1,2";
+        };
+        name = Release;
+      };
+    /* End XCBuildConfiguration section */
+    /* Begin XCConfigurationList section */
+      CLP = {
+        isa = XCConfigurationList;
+        buildConfigurations = ( DBG, REL, );
+        defaultConfigurationIsVisible = 0;
+        defaultConfigurationName = Release;
+      };
+      CLT = {
+        isa = XCConfigurationList;
+        buildConfigurations = ( TD, TR, );
+        defaultConfigurationIsVisible = 0;
+        defaultConfigurationName = Release;
+      };
+    /* End XCConfigurationList section */
+  };
+  rootObject = PRJ;
+}
+EOF
+
+          xcodebuild \
+            -project GlossyGlass.xcodeproj \
+            -target GlossyGlass \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+          DYLIB=$(find build -name "GlossyGlass.dylib" | head -1)
+          if [ -z "$DYLIB" ]; then
+            echo "ERROR: dylib not found"
+            find build -type f | head -40
+            exit 1
           fi
-          echo "Swift lib = $SWIFT_LIB"
-
-          mkdir -p build
-
-          # shellcheck disable=SC2086
-          $SWIFT \
-            -sdk "$SDK" \
-            -target "$TARGET" \
-            -module-name GlossyGlass \
-            -parse-as-library \
-            -O \
-            -c \
-            $SWIFT_FILES \
-            -o build/GlassSwift.o
-
-          if [ -n "$OBJC_FILES" ]; then
-            # shellcheck disable=SC2086
-            xcrun -sdk iphoneos clang \
-              -c \
-              -target "$TARGET" \
-              -isysroot "$SDK" \
-              -fobjc-arc \
-              -O2 \
-              $OBJC_FILES \
-              -o build/GlassObjC.o
-          fi
-
-          OBJS="build/GlassSwift.o"
-          if [ -f build/GlassObjC.o ]; then
-            OBJS="$OBJS build/GlassObjC.o"
-          fi
-
-          # shellcheck disable=SC2086
-          if ! xcrun -sdk iphoneos clang \
-            -target "$TARGET" \
-            -isysroot "$SDK" \
-            -dynamiclib \
-            -o "$OUT" \
-            $OBJS \
-            -framework UIKit \
-            -framework Foundation \
-            -framework CoreGraphics \
-            -framework QuartzCore \
-            -lswiftCore \
-            -lswiftFoundation \
-            -lswiftUIKit \
-            -L"$SWIFT_LIB" \
-            -rpath /usr/lib/swift \
-            -install_name "@rpath/GlossyGlass.dylib"; then
-            echo "Primary link failed — retry"
-            # shellcheck disable=SC2086
-            xcrun -sdk iphoneos clang \
-              -target "$TARGET" \
-              -isysroot "$SDK" \
-              -dynamiclib \
-              -o "$OUT" \
-              $OBJS \
-              -framework UIKit \
-              -framework Foundation \
-              -framework CoreGraphics \
-              -framework QuartzCore \
-              -L"$SWIFT_LIB" \
-              -install_name "@rpath/GlossyGlass.dylib"
-          fi
-
-          echo "=== Result ==="
-          ls -la "$OUT"
-          file "$OUT"
-          lipo -info "$OUT" || true
+          cp "$DYLIB" GlossyGlass.dylib
+          ls -la GlossyGlass.dylib
+          file GlossyGlass.dylib
+          lipo -info GlossyGlass.dylib || true
 
       - uses: actions/upload-artifact@v4
         with:
