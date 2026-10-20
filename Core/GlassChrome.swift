@@ -13,16 +13,20 @@ import UIKit
             self?.apply(reason: "prefs")
         }
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self?.apply(reason: "active") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self?.apply(reason: "active") }
         }
-        Timer.scheduledTimer(withTimeInterval: 0.85, repeats: true) { [weak self] _ in
+        // Catch profile opens from DMs / pushes
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.apply(reason: "fg")
+        }
+        Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
             self?.apply(reason: "timer")
         }
     }
 
     @objc public func apply(reason: String = "apply") {
         let now = CFAbsoluteTimeGetCurrent()
-        if now - last < 0.12 { return }
+        if now - last < 0.10 { return }
         last = now
         let p = GlassPreferences.shared
         guard p.isEnabled, !p.safeMode else { return }
@@ -32,6 +36,7 @@ import UIKit
     }
 
     private func applyToWindow(_ window: UIWindow, prefs p: GlassPreferences) {
+        // Tab → slim floating pill
         if p.styleTabBar, let tab = IGLocator.shared.findTabBar(in: window) {
             installPill(on: tab, prefs: p)
             if p.glossyMode { GlassIcons.shared.apply(to: tab) }
@@ -42,26 +47,23 @@ import UIKit
             }
         }
 
+        // Nav — light liquid strip, no thick borders
         if p.styleNavBar, let nav = IGLocator.shared.findNavigationBar(in: window) {
-            guard !IGLocator.shared.isContent(nav) else { return }
-            nav.backgroundColor = .clear
-            if let bar = nav as? UINavigationBar {
-                bar.isTranslucent = true
-                bar.setBackgroundImage(UIImage(), for: .default)
-                bar.shadowImage = UIImage()
-            }
-            for sub in nav.subviews {
-                let n = NSStringFromClass(type(of: sub)).lowercased()
-                if n.contains("background") || n.contains("visualeffect") || n.contains("barbackground") {
-                    sub.backgroundColor = .clear
-                    sub.isOpaque = false
+            guard !IGLocator.shared.isContent(nav) else { /* continue other work */ } else {
+                nav.backgroundColor = .clear
+                if let bar = nav as? UINavigationBar {
+                    bar.isTranslucent = true
+                    bar.setBackgroundImage(UIImage(), for: .default)
+                    bar.shadowImage = UIImage()
                 }
-            }
-            GlassMaterial.shared.apply(to: nav, style: p.glossyMode ? .strong : .standard, corner: 0)
-            for sub in nav.subviews {
-                if (sub is UIControl || sub is UIButton) && sub.bounds.height > 20 && sub.bounds.height < 52 {
-                    if p.animations { GlassAnimations.shared.attachPress(to: sub) }
+                for sub in nav.subviews {
+                    let n = NSStringFromClass(type(of: sub)).lowercased()
+                    if n.contains("background") || n.contains("visualeffect") || n.contains("barbackground") {
+                        sub.backgroundColor = .clear
+                        sub.isOpaque = false
+                    }
                 }
+                GlassMaterial.shared.apply(to: nav, style: .soft, corner: 0)
             }
         }
 
@@ -69,18 +71,17 @@ import UIKit
             for c in IGLocator.shared.findComposers(in: window) {
                 guard c.bounds.height > 34, c.bounds.height < 100 else { continue }
                 guard !IGLocator.shared.isContent(c) else { continue }
-                GlassMaterial.shared.apply(to: c, style: .soft, corner: 20)
-                if p.animations { GlassAnimations.shared.attachPress(to: c) }
+                GlassMaterial.shared.apply(to: c, style: .soft, corner: 22)
             }
             for btn in IGLocator.shared.findCallButtons(in: window) {
                 GlassMaterial.shared.applyCircle(to: btn)
-                if p.animations { GlassAnimations.shared.attachPress(to: btn) }
             }
             GlassDMChrome.shared.apply(in: window)
         }
 
-        if p.styleReels { GlassReelsChrome.shared.apply(in: window) }
+        // Always try profile + feed (covers profiles opened from DMs)
         if p.styleProfiles { GlassProfileChrome.shared.apply(in: window) }
+        if p.styleReels { GlassReelsChrome.shared.apply(in: window) }
         if p.styleFeed { GlassFeedChrome.shared.apply(in: window) }
         if p.styleSearch { GlassSearchChrome.shared.apply(in: window) }
         if p.styleContext { GlassContextChrome.shared.apply(in: window) }
@@ -94,6 +95,7 @@ import UIKit
         }
     }
 
+    /// Slim iOS-26 style floating capsule — NOT full-width fat bar
     private func installPill(on tab: UIView, prefs p: GlassPreferences) {
         tab.backgroundColor = .clear
         tab.isOpaque = false
@@ -105,8 +107,13 @@ import UIKit
                 sub.isOpaque = false
             }
         }
+
         let pillTag = 0x4747_504C
         var plate = tab.viewWithTag(pillTag)
+        // Larger side inset → smaller, floating capsule
+        let insetH: CGFloat = 28
+        let insetV: CGFloat = 8
+
         if plate == nil {
             plate = UIView()
             plate!.tag = pillTag
@@ -114,14 +121,15 @@ import UIKit
             plate!.translatesAutoresizingMaskIntoConstraints = false
             tab.insertSubview(plate!, at: 0)
             NSLayoutConstraint.activate([
-                plate!.leadingAnchor.constraint(equalTo: tab.leadingAnchor, constant: 10),
-                plate!.trailingAnchor.constraint(equalTo: tab.trailingAnchor, constant: -10),
-                plate!.topAnchor.constraint(equalTo: tab.topAnchor, constant: 5),
-                plate!.bottomAnchor.constraint(equalTo: tab.bottomAnchor, constant: -5)
+                plate!.leadingAnchor.constraint(equalTo: tab.leadingAnchor, constant: insetH),
+                plate!.trailingAnchor.constraint(equalTo: tab.trailingAnchor, constant: -insetH),
+                plate!.topAnchor.constraint(equalTo: tab.topAnchor, constant: insetV),
+                plate!.bottomAnchor.constraint(equalTo: tab.bottomAnchor, constant: -insetV)
             ])
         }
-        let h = max(tab.bounds.height - 10, 48)
-        let corner = min(h * 0.5, 26)
+        // Pill height from constraints; corner = half of typical pill height
+        let approxH: CGFloat = max(tab.bounds.height - insetV * 2, 44)
+        let corner = min(approxH * 0.5, 22)
         GlassMaterial.shared.apply(to: plate!, style: .pill, corner: corner)
     }
 }

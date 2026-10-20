@@ -1,5 +1,6 @@
 import UIKit
 
+/// Profiles — including when opened from DMs / deep links
 @objc public final class GlassProfileChrome: NSObject {
     @objc public static let shared = GlassProfileChrome()
 
@@ -7,28 +8,38 @@ import UIKit
         let p = GlassPreferences.shared
         guard p.styleProfiles else { return }
 
-        let profiles = IGLocator.shared.findViews(classContains: "profile", in: window)
-            + IGLocator.shared.findViews(classContains: "userinfo", in: window)
+        // Broad discovery: profile, user, header, stats, action bars
+        let keys = ["profile", "userinfo", "userdetail", "profileheader", "profilestats",
+                    "actionbar", "profileaction", "followbutton", "messagebutton"]
+        var views: [UIView] = []
+        for k in keys { views += IGLocator.shared.findViews(classContains: k, in: window) }
 
-        for v in profiles {
+        for v in views {
             guard !IGLocator.shared.isContent(v) else { continue }
             let n = NSStringFromClass(type(of: v)).lowercased()
-            if n.contains("header") || n.contains("action") || n.contains("toolbar") || n.contains("button") || n.contains("stats") {
-                if v.bounds.height > 32 && v.bounds.height < 140 {
-                    GlassMaterial.shared.apply(to: v, style: .soft, corner: 14)
-                    if p.animations { GlassAnimations.shared.attachPress(to: v) }
-                }
+            let h = v.bounds.height
+            // Header / stats cards
+            if (n.contains("header") || n.contains("stats") || n.contains("info")) && h > 40 && h < 160 {
+                GlassMaterial.shared.apply(to: v, style: .soft, corner: 16)
+                continue
+            }
+            // Action rows / buttons
+            if (n.contains("action") || n.contains("button") || n.contains("toolbar") || n.contains("follow") || n.contains("message")) && h > 28 && h < 70 {
+                GlassMaterial.shared.apply(to: v, style: .soft, corner: 12)
+                if p.animations { GlassAnimations.shared.attachPress(to: v) }
             }
         }
-        let actions = IGLocator.shared.findViews(classContains: "follow", in: window)
-            + IGLocator.shared.findViews(classContains: "message", in: window)
-        for b in actions where b is UIControl || b is UIButton {
+
+        // Follow / Message pills on any profile
+        for b in IGLocator.shared.findViews(classContains: "follow", in: window)
+            + IGLocator.shared.findViews(classContains: "message", in: window) {
+            guard b is UIControl || b is UIButton else { continue }
             guard !IGLocator.shared.isContent(b) else { continue }
-            if p.glossyMode {
+            if b.bounds.height > 28 && b.bounds.height < 56 {
                 b.layer.cornerCurve = .continuous
-                b.layer.cornerRadius = 12
+                b.layer.cornerRadius = b.bounds.height * 0.45
+                if p.animations { GlassAnimations.shared.attachPress(to: b) }
             }
-            if p.animations { GlassAnimations.shared.attachPress(to: b) }
         }
     }
 }
