@@ -44,7 +44,9 @@ import UIKit
 
         if p.styleNavBar, let nav = IGLocator.shared.findNavigationBar(in: window) {
             nav.backgroundColor = .clear
-            nav.isTranslucent = true
+            if let bar = nav as? UINavigationBar {
+                bar.isTranslucent = true
+            }
             for sub in nav.subviews {
                 let n = NSStringFromClass(type(of: sub)).lowercased()
                 if n.contains("background") || n.contains("visualeffect") {
